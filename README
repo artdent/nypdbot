@@ -1,0 +1,52 @@
+
+Overview
+========
+
+Nypdbot is a Python package for writing Python scripts to control Pure Data.
+
+It has three components:
+
+- pdctl: A patching library that allows construction of Pure Data object graphs
+- mta: A generator-based event sequencer
+- driver.pd: A tiny Pure Data patch to listen on a socket
+
+The public interface is made available in the "nypdbot" module.
+See examples/swarm.py for an example usage.
+
+Typical usage is to open the driver.pd patch in Pure Data,
+then run your program.
+
+Implementation
+==============
+
+Nypdbot controls Pure Data via the "dynamic patching" technique:
+sending messages to the "pd" selector to control Pure Data, and sending
+messages to the "pd-foo" selector to manipulate canvas foo.
+
+Documentation on dynamic patching:
+http://wiki.dataflow.ws/DynamicPatching
+http://puredata.info/docs/tutorials/TipsAndTricks#undocumented-pd-internal-messages
+
+Related Projects
+================
+
+Purity - http://wiki.dataflow.ws/Purity
+Pyata - http://code.google.com/p/pyata
+
+Purity uses twisted, which is way more than I want to deal with for a
+hobby project :-).
+
+Both Purity and Pyata try to manage the Pure Data process themselves, whereas
+Nypdbot makes no such attempts.
+
+Use whichever program makes you happy, productive, and loud.
+
+TODO
+====
+
+- Tests
+- Subcanvas support
+- Deleting connections and objects
+- Examples that demonstrate adding shards to mta during the event loop
+- Examples that demonstrate manipulating the pd object graph during the
+  event loop
