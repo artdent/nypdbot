@@ -27,6 +27,7 @@ standalone.
 
 import functools
 import heapq
+import logging
 import time
 try:
   from functools import total_ordering

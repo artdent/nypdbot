@@ -28,11 +28,9 @@ class UntimedMta(mta.Mta):
         self.events = 0
 
     def _sleep(self, ms):
-        print('sleeping for', ms)
         self.slept += ms
 
     def _now(self):
-        print('it is now', self.slept)
         return self.slept
 
     def _fire_event(self, ev):
@@ -83,6 +81,27 @@ class MtaTest(unittest.TestCase):
         scheduler._sleep(10)
         self.assertIsNone(scheduler.tick())
         self.assertEquals(['a', 'b', 'c', 'd'], self.output)
+
+    def spawn(self, scheduler):
+        self.out('a')
+        self.out('b')
+        scheduler.add(self.spawn2())
+        yield mta.Time(1)
+        self.out('c')
+        self.out('d')
+
+    def spawn2(self):
+        self.out('aa')
+        self.out('bb')
+        yield mta.Time(1)
+        self.out('cc')
+        self.out('dd')
+
+    def testSpawning(self):
+        scheduler = UntimedMta()
+        scheduler.add(self.spawn(scheduler))
+        scheduler.loop()
+        self.assertEquals('a b aa bb c d cc dd', ' '.join(self.output))
 
 
 class BeatTest(unittest.TestCase):
