@@ -27,17 +27,18 @@ __all__ = ['Pd', 'FakePdSend']
 # This must match the port in driver.pd
 SEND_PORT = 2001
 
-
-EXTRA_PD_OBJ_NAMES = {
+# Table of Python-legal replacements for special characters in object names.
+SPECIAL_CHARACTERS = {
+    '_': '~',
     'plus': '+',
     'minus': '-',
     'times': '*',
     'div': '/',
-    'plus_': '+~',
-    'minus_': '-~',
-    'times_': '*~',
-    'div_': '/~',
     }
+
+# Classes for creating particular PD objects. Obj can be used to create any
+# object, but you can register a class here to provide more specialized methods.
+# See Recv as an example.
 PD_OBJECTS = {}
 
 def register(cls):
@@ -52,6 +53,10 @@ class Canvas:
     Object creation messages are not sent directly; they are queued until
     render() is called. This is so the object placer can see the complete
     graph when deciding where to place objects.
+
+    Because __getattr__ is overloaded, you can use e.g. canvas.recv('foo')
+    to create a [recv foo] object. To create an audio-rate object like osc~,
+    use the Python-legal name canvas.osc_(440).
     """
 
     def __init__(self, pd, name):
@@ -60,17 +65,17 @@ class Canvas:
         self.boxes = []
         self._placer = Placer()
 
-    def _python_obj_name(self, name):
+    def _creation_class(self, name):
         return name.capitalize()
 
     def _pd_obj_name(self, name):
-        if name in EXTRA_PD_OBJ_NAMES:
-            return EXTRA_PD_OBJ_NAMES[name]
-        return name.replace('_', '~')
+        for python_name, pd_name in SPECIAL_CHARACTERS.items():
+            name = name.replace(python_name, pd_name)
+        return name
 
     def __getattr__(self, name):
         def create(*args):
-            constructor = PD_OBJECTS.get(self._python_obj_name(name))
+            constructor = PD_OBJECTS.get(self._creation_class(name))
             if constructor:
                 box = constructor(self, *args)
             else:
@@ -101,6 +106,7 @@ class Canvas:
         for box in self.boxes:
             if not box.rendered:
                 box.rendered = True
+                assert box.CREATION_COMMAND
                 yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
                        box.name] + list(box.args)
         for conn in connections:
@@ -131,6 +137,7 @@ class Connection:
 
 
 class Box:
+    """Base class for all Pure Data boxes."""
 
     CREATION_COMMAND = None
 
@@ -169,9 +176,6 @@ class Obj(Box):
     """A generic object box, e.g. [print foo]."""
     CREATION_COMMAND = 'obj'
 
-    def __init__(self, parent_canvas, name, *args):
-        super().__init__(parent_canvas, name, *args)
-
 
 @register
 class Recv(Obj):
@@ -186,7 +190,7 @@ class Recv(Obj):
 
 
 class Placer:
-    """An extremely dumb object placer."""
+    """An extremely dumb object placer. TODO: write a better one."""
 
     LEFT = 10
 

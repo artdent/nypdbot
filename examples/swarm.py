@@ -51,8 +51,8 @@ def draw(patch):
     patch.render()
 
 def swarm():
-    yield Time(3000)
     pd.dsp(True)
+    yield Time(3000)
     for i in range(1000):
         yield Time(50)
         cutoff = 6000 - i * 25

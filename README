@@ -2,7 +2,7 @@
 Overview
 ========
 
-Nypdbot is a Python package for writing Python scripts to control Pure Data.
+Nypdbot is a package for writing Python scripts to control Pure Data.
 
 It has three components:
 
@@ -11,10 +11,9 @@ It has three components:
 - driver.pd: A tiny Pure Data patch to listen on a socket
 
 The public interface is made available in the "nypdbot" module.
-See examples/swarm.py for an example usage.
 
-Typical usage is to open the driver.pd patch in Pure Data,
-then run your program.
+Typical usage is to open the driver.pd patch in Pure Data and then run your
+program. See examples/swarm.py as an example.
 
 Implementation
 ==============
@@ -27,19 +26,28 @@ Documentation on dynamic patching:
 http://wiki.dataflow.ws/DynamicPatching
 http://puredata.info/docs/tutorials/TipsAndTricks#undocumented-pd-internal-messages
 
+Nypdbot is written for Python 3 because why not. If that's inconvenient,
+let me know.
+
 Related Projects
 ================
 
 Purity - http://wiki.dataflow.ws/Purity
 Pyata - http://code.google.com/p/pyata
+Topd - http://automata.cc/topd
+PyPd - http://mccormick.cx/projects/PyPd/
 
 Purity uses twisted, which is way more than I want to deal with for a
 hobby project :-).
 
-Both Purity and Pyata try to manage the Pure Data process themselves, whereas
-Nypdbot makes no such attempts.
+Purity, Pyata, and PyPd try to manage the Pure Data process themselves, whereas
+Nypdbot makes no such attempts. I typically just leave Pure Data running
+and have my scripts start by clearing the operative patch.
 
-Use whichever program makes you happy, productive, and loud.
+Topd is most similar to this library; I probably would have hacked on it
+instead had I found it before starting.
+
+Use whichever library makes you happy, productive, and loud.
 
 TODO
 ====
