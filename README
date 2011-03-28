@@ -52,7 +52,7 @@ Use whichever library makes you happy, productive, and loud.
 TODO
 ====
 
-- Tests
+- More tests
 - Subcanvas support
 - Deleting connections and objects
 - Examples that demonstrate adding shards to mta during the event loop

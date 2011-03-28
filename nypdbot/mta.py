@@ -16,8 +16,14 @@
 
 """
 Generator-based event sequencer.
-"""
 
+This scheduler is loosely inspired by the ChucK audio programming language
+and its approach to time manipulation (see
+http://chuck.cs.princeton.edu/doc/language/time.html).
+
+This module is distributed as part of nypdbot, but it could easily be used
+standalone.
+"""
 
 import functools
 import heapq
@@ -81,7 +87,8 @@ class Mta:
           The delay (in ms) until the next event, or None if there are
         no more events.
         """
-        if not self.tm:
+        logging.debug('firing events at', self.tm)
+        if self.tm is None:
             self.tm = self._now()
         else:
             now = self._now()
@@ -94,7 +101,7 @@ class Mta:
             ev = heapq.heappop(self.scheduler)
             delay_ms = ev.delay.to_ms(self.bpm)
             if delay_ms < -10:
-                print('fell behind by', abs(delay_ms), 'ms')
+                logging.warn('fell behind by', abs(delay_ms), 'ms')
             self._fire_event(ev)
         if self.scheduler:
             return self.scheduler[0].delay.to_ms(self.bpm)
