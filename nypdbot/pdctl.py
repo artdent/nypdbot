@@ -22,7 +22,7 @@ import collections
 import logging
 import socket
 
-__all__ = ['Pd', 'FakePdSend']
+__all__ = ['Pd']
 
 # This must match the port in driver.pd
 SEND_PORT = 2001
