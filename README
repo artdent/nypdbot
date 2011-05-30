@@ -44,6 +44,9 @@ Purity, Pyata, and PyPd try to manage the Pure Data process themselves, whereas
 Nypdbot makes no such attempts. I typically just leave Pure Data running
 and have my scripts start by clearing the operative patch.
 
+PyPd provides control over the Pd process and bidirectional communication with
+pd, but no patching functions. You probably could use it together with nypdbot.
+
 Topd is most similar to this library; I probably would have hacked on it
 instead had I found it before starting.
 

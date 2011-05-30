@@ -47,85 +47,6 @@ def register(cls):
     return cls
 
 
-class Canvas:
-    """Reprents a Pd canvas, keeping track of objects added to it.
-
-    Object creation messages are not sent directly; they are queued until
-    render() is called. This is so the object placer can see the complete
-    graph when deciding where to place objects.
-
-    Because __getattr__ is overloaded, you can use e.g. canvas.recv('foo')
-    to create a [recv foo] object. To create an audio-rate object like osc~,
-    use the Python-legal name canvas.osc_(440).
-    """
-
-    def __init__(self, pd, name):
-        self.pd = pd
-        self.name = name
-        self.boxes = []
-        self._placer = Placer()
-
-    def _creation_class(self, name):
-        return name.capitalize()
-
-    def _pd_obj_name(self, name):
-        for python_name, pd_name in SPECIAL_CHARACTERS.items():
-            name = name.replace(python_name, pd_name)
-        return name
-
-    def __getattr__(self, name):
-        def create(*args):
-            constructor = PD_OBJECTS.get(self._creation_class(name))
-            if constructor:
-                box = constructor(self, *args)
-            else:
-                box = Obj(self, self._pd_obj_name(name), *args)
-            return self.add(box)
-        return create
-
-    def add(self, box):
-        """Add the given box to the canvas."""
-        self.boxes.append(box)
-        # Chainable so you can write box = canvas.add(Box(...))
-        return box
-
-    def render(self):
-        """Send all queued box and conn creation messages."""
-        for cmd in self._creation_commands():
-            self.send_cmd(*cmd)
-
-    def _creation_commands(self):
-        # TODO: only generate commands for boxes and conns that are new
-        # since the last time render() was called.
-        connections = []
-        for box in self.boxes:
-            connections.extend(box.children)
-        coord_list = self._placer.place_all(self.boxes)
-        coords = dict(zip(self.boxes, coord_list))
-        ids = dict((box, i) for i, box in enumerate(self.boxes))
-        for box in self.boxes:
-            if not box.rendered:
-                box.rendered = True
-                assert box.CREATION_COMMAND
-                yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
-                       box.name] + list(box.args)
-        for conn in connections:
-            if not conn.rendered:
-                conn.rendered = True
-                yield ['connect', ids[conn.src], conn.outlet,
-                       ids[conn.dest], conn.inlet]
-
-    def send_cmd(self, *args):
-        """Sends a command to this canvas in Pure Data."""
-        self.pd.send_cmd('pd-' + self.name, *args)
-
-    def clear(self):
-        """Removes all boxes from this canvas."""
-        self.boxes = []
-        self._placer = Placer()
-        self.send_cmd('clear')
-
-
 class Connection:
 
     def __init__(self, src, dest, outlet, inlet):
@@ -221,6 +142,90 @@ class Placer:
         return left, top
 
 
+@register
+class Canvas(Obj):
+    """Reprents a Pd canvas, keeping track of objects added to it.
+
+    Object creation messages are not sent directly; they are queued until
+    render() is called. This is so the object placer can see the complete
+    graph when deciding where to place objects.
+
+    Because __getattr__ is overloaded, you can use e.g. canvas.recv('foo')
+    to create a [recv foo] object. To create an audio-rate object like osc~,
+    use the Python-legal name canvas.osc_(440).
+    """
+
+    def __init__(self, pd, parent_canvas, canvas_name):
+        super().__init__(parent_canvas, 'pd', canvas_name)
+        self.pd = pd
+        self.canvas_name = canvas_name
+        self.boxes = []
+        self._placer = Placer()
+
+    def _creation_class(self, name):
+        return name.capitalize()
+
+    def _pd_obj_name(self, name):
+        for python_name, pd_name in SPECIAL_CHARACTERS.items():
+            name = name.replace(python_name, pd_name)
+        return name
+
+    def __getattr__(self, name):
+        def create(*args):
+            constructor = PD_OBJECTS.get(self._creation_class(name))
+            if constructor:
+                box = constructor(self, *args)
+            else:
+                box = Obj(self, self._pd_obj_name(name), *args)
+            return self.add(box)
+        return create
+
+    def add(self, box):
+        """Add the given box to the canvas."""
+        self.boxes.append(box)
+        # Chainable so you can write box = canvas.add(Box(...))
+        return box
+
+    def canvas(self, name, *args):
+        return self.add(Canvas(self.pd, self, name, *args))
+
+    def render(self):
+        """Send all queued box and conn creation messages."""
+        for cmd in self._creation_commands():
+            self.send_cmd(*cmd)
+
+    def _creation_commands(self):
+        # TODO: only generate commands for boxes and conns that are new
+        # since the last time render() was called.
+        connections = []
+        for box in self.boxes:
+            connections.extend(box.children)
+        coord_list = self._placer.place_all(self.boxes)
+        coords = dict(zip(self.boxes, coord_list))
+        ids = dict((box, i) for i, box in enumerate(self.boxes))
+        for box in self.boxes:
+            if not box.rendered:
+                box.rendered = True
+                assert box.CREATION_COMMAND
+                yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
+                       box.name] + list(box.args)
+        for conn in connections:
+            if not conn.rendered:
+                conn.rendered = True
+                yield ['connect', ids[conn.src], conn.outlet,
+                       ids[conn.dest], conn.inlet]
+
+    def send_cmd(self, *args):
+        """Sends a command to this canvas in Pure Data."""
+        self.pd.send_cmd('pd-' + self.canvas_name, *args)
+
+    def clear(self):
+        """Removes all boxes from this canvas."""
+        self.boxes = []
+        self._placer = Placer()
+        self.send_cmd('clear')
+
+
 class PdSend:
     """Sends messages to Pure Data."""
     def __init__(self, port=SEND_PORT):
@@ -250,7 +255,7 @@ def to_fudi(args):
 class Pd:
     def __init__(self, sender=None):
         self.sender = sender or PdSend()
-        self.main = Canvas(self, '__main__')
+        self.main = Canvas(self, None, '__main__')
 
     def dsp(self, on):
         self.send_cmd('pd', 'dsp', 1 if on else 0)
