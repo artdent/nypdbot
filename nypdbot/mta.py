@@ -88,7 +88,7 @@ class Mta:
           The delay (in ms) until the next event, or None if there are
         no more events.
         """
-        logging.debug('firing events at', self.tm)
+        logging.debug('firing events at %s', self.tm)
         if self.tm is None:
             self.tm = self._now()
         else:
