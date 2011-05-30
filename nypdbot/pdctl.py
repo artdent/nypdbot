@@ -123,6 +123,13 @@ class Placer:
         # Count of children of each object
         self.children = collections.defaultdict(int)
 
+    def enter_test_mode(self):
+        """For test purposes, place all objects at (-1, -1)."""
+        self.top = -1
+        self.LEFT = -1
+        self.y_step = 0
+        self.x_step = 0
+
     def place_all(self, boxes):
         return [self.place(box, box.parent()) for box in boxes]
 

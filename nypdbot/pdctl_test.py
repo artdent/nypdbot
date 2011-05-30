@@ -31,6 +31,7 @@ class PdTest(unittest.TestCase):
     def setUp(self):
         self.sender = TestPdSend()
         self.pd = pdctl.Pd(sender=self.sender)
+        self.pd.main._placer.enter_test_mode()
 
     def testSmoke(self):
         # Add some arbitrary objects.
@@ -46,15 +47,13 @@ class PdTest(unittest.TestCase):
         patch.render()
         self.pd.dsp(True)
 
-        # TODO: this is a bad test case because it is sensitive to the behavior
-        # of pdctl.Placer.
         self.assertEquals(
             [
-                b'pd-__main__ obj 10 30 metro 500;',
-                b'pd-__main__ obj 110 30 print hello world!;',
-                b'pd-__main__ obj 10 50 osc~ 440;',
-                b'pd-__main__ obj 110 50 *~ 0.04;',
-                b'pd-__main__ obj 110 70 dac~;',
+                b'pd-__main__ obj -1 -1 metro 500;',
+                b'pd-__main__ obj -1 -1 print hello world!;',
+                b'pd-__main__ obj -1 -1 osc~ 440;',
+                b'pd-__main__ obj -1 -1 *~ 0.04;',
+                b'pd-__main__ obj -1 -1 dac~;',
                 b'pd-__main__ connect 0 0 1 0;',
                 b'pd-__main__ connect 2 0 3 0;',
                 b'pd-__main__ connect 3 0 4 0;',
@@ -67,7 +66,7 @@ class PdTest(unittest.TestCase):
         sub = patch.canvas('foo')
         patch.render()
         self.assertEquals(
-            [b'pd-__main__ obj 10 30 pd foo;'],
+            [b'pd-__main__ obj -1 -1 pd foo;'],
             self.sender.sent)
 
 
