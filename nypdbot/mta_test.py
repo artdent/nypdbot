@@ -82,6 +82,30 @@ class MtaTest(unittest.TestCase):
         self.assertIsNone(scheduler.tick())
         self.assertEquals(['a', 'b', 'c', 'd'], self.output)
 
+    def testReuseEvents(self):
+        """Ensure that time points are copied when added to the scheduler."""
+        delay1 = mta.Time(10)
+        delay2 = mta.Time(1)
+        def go1():
+            self.out('a')
+            yield delay1
+            self.out('b')
+            # If delay1 properly counts as another 10 ticks, then
+            # c will come after C.
+            yield delay1
+            self.out('c')
+        def go2():
+            self.out('A')
+            yield delay1
+            self.out('B')
+            yield delay2
+            self.out('C')
+        scheduler = UntimedMta()
+        scheduler.add(go1())
+        scheduler.add(go2())
+        scheduler.loop()
+        self.assertEquals('aAbBCc', ''.join(self.output))
+
     def spawn(self, scheduler):
         self.out('a')
         self.out('b')

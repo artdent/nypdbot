@@ -25,6 +25,7 @@ This module is distributed as part of nypdbot, but it could easily be used
 standalone.
 """
 
+import copy
 import functools
 import heapq
 import logging
@@ -73,7 +74,8 @@ class Mta:
 
     def _enqueue(self, ev, delay):
         """Schedule an event."""
-        heapq.heappush(self.scheduler, ScheduledEvent(ev, self.bpm, delay))
+        heapq.heappush(self.scheduler,
+                       ScheduledEvent(ev, self.bpm, copy.copy(delay)))
 
     def _sleep(self, delay_ms):
         time.sleep(delay_ms / 1000.0)
