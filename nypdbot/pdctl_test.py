@@ -69,6 +69,14 @@ class PdTest(unittest.TestCase):
             [b'pd-__main__ obj -1 -1 pd foo;'],
             self.sender.sent)
 
+    def testSubpatch_args(self):
+        patch = self.pd.main
+        sub = patch.canvas('foo', 1, 2)
+        patch.render()
+        self.assertEquals(
+            [b'pd-__main__ obj -1 -1 pd foo 1 2;'],
+            self.sender.sent)
+
 
 if __name__ == '__main__':
     unittest.main()

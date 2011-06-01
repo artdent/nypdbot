@@ -162,12 +162,13 @@ class Canvas(Obj):
     use the Python-legal name canvas.osc_(440).
     """
 
-    def __init__(self, pd, parent_canvas, canvas_name):
-        super().__init__(parent_canvas, 'pd', canvas_name)
+    def __init__(self, pd, parent_canvas, canvas_name, *args):
+        super().__init__(parent_canvas, 'pd', canvas_name, *args)
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
         self._placer = Placer()
+        self.ids = {}
 
     def _creation_class(self, name):
         return name.capitalize()
@@ -207,20 +208,22 @@ class Canvas(Obj):
         connections = []
         for box in self.boxes:
             connections.extend(box.children)
-        coord_list = self._placer.place_all(self.boxes)
-        coords = dict(zip(self.boxes, coord_list))
-        ids = dict((box, i) for i, box in enumerate(self.boxes))
-        for box in self.boxes:
-            if not box.rendered:
-                box.rendered = True
-                assert box.CREATION_COMMAND
-                yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
-                       box.name] + list(box.args)
+        boxes_to_place = [box for box in self.boxes if not box.rendered]
+        coord_list = self._placer.place_all(boxes_to_place)
+        coords = dict(zip(boxes_to_place, coord_list))
+        start_id = len(self.ids)
+        for i, box in enumerate(boxes_to_place):
+            self.ids[box] = i + start_id
+        for box in boxes_to_place:
+            box.rendered = True
+            assert box.CREATION_COMMAND
+            yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
+                   box.name] + list(box.args)
         for conn in connections:
             if not conn.rendered:
                 conn.rendered = True
-                yield ['connect', ids[conn.src], conn.outlet,
-                       ids[conn.dest], conn.inlet]
+                yield ['connect', self.ids[conn.src], conn.outlet,
+                       self.ids[conn.dest], conn.inlet]
 
     def send_cmd(self, *args):
         """Sends a command to this canvas in Pure Data."""
