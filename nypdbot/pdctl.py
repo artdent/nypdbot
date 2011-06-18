@@ -102,11 +102,21 @@ class Obj(Box):
 class Recv(Obj):
     """An [r] object."""
 
-    def __init__(self, parent_canvas, selector):
+    _recv_count = -1
+
+    @classmethod
+    def gen_name(cls):
+        """Generates a unique selector name."""
+        cls._recv_count += 1
+        return '_recv_%d' % cls._recv_count
+
+    def __init__(self, parent_canvas, selector=None):
+        selector = selector or self.gen_name()
         super().__init__(parent_canvas, 'r', selector)
         self.selector = selector
 
     def send(self, *args):
+        """Sends a message to this recv object."""
         self.parent_canvas.pd.send_cmd(self.selector, *args)
 
 

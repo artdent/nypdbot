@@ -77,6 +77,19 @@ class PdTest(unittest.TestCase):
             [b'pd-__main__ obj -1 -1 pd foo 1 2;'],
             self.sender.sent)
 
+    def testRecvName(self):
+        patch = self.pd.main
+        r = patch.recv('foo')
+        self.assertEquals('foo', r.selector)
+        r2 = patch.recv()
+        self.assertEquals('_recv_0', r2.selector)
+        r3 = patch.recv('bar')
+        self.assertEquals('bar', r3.selector)
+        r4 = patch.recv()
+        self.assertEquals('_recv_1', r4.selector)
+        r5 = patch.recv()
+        self.assertEquals('_recv_2', r5.selector)
+
 
 if __name__ == '__main__':
     unittest.main()
