@@ -60,8 +60,8 @@ class Adsr(object):
         self.sus = sustain
         self.rel = release
 
-        self.trigger = p.recv()
-        self.line = p.line_()
+        self.trigger = p.Recv()
+        self.line = p.Line_()
         self.trigger.patch(self.line)
 
     def _send(self, level, delay):
@@ -116,10 +116,10 @@ def go(phrase, tapper):
 
 
 def draw(p):
-    osc = p.osc_(330)
+    osc = p.Osc_(330)
     tap = Tapper(p)
-    amp = p.times_()
-    dac = p.dac_()
+    amp = p.Times_()
+    dac = p.Dac_()
     osc.patch(amp).patch(dac)
     amp.patch(dac, 0, 1)
     tap.out().patch(amp, 0, 1)

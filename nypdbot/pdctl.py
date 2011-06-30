@@ -180,17 +180,15 @@ class Canvas(Obj):
         self._placer = Placer()
         self.ids = {}
 
-    def _creation_class(self, name):
-        return name.capitalize()
-
     def _pd_obj_name(self, name):
+        name = name.lower()
         for python_name, pd_name in SPECIAL_CHARACTERS.items():
             name = name.replace(python_name, pd_name)
         return name
 
     def __getattr__(self, name):
         def create(*args):
-            constructor = PD_OBJECTS.get(self._creation_class(name))
+            constructor = PD_OBJECTS.get(name)
             if constructor:
                 box = constructor(self, *args)
             else:

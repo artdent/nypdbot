@@ -36,12 +36,12 @@ class PdTest(unittest.TestCase):
     def testSmoke(self):
         # Add some arbitrary objects.
         patch = self.pd.main
-        lb = patch.metro(500)
-        echo = patch.print('hello', 'world!')
+        lb = patch.Metro(500)
+        echo = patch.Print('hello', 'world!')
         lb.patch(echo)
-        osc = patch.osc_(440)
-        vol = patch.times_(0.04)
-        dac = patch.dac_()
+        osc = patch.Osc_(440)
+        vol = patch.Times_(0.04)
+        dac = patch.Dac_()
         osc.patch(vol).patch(dac)
 
         patch.render()
@@ -79,15 +79,15 @@ class PdTest(unittest.TestCase):
 
     def testRecvName(self):
         patch = self.pd.main
-        r = patch.recv('foo')
+        r = patch.Recv('foo')
         self.assertEquals('foo', r.selector)
-        r2 = patch.recv()
+        r2 = patch.Recv()
         self.assertEquals('_recv_0', r2.selector)
-        r3 = patch.recv('bar')
+        r3 = patch.Recv('bar')
         self.assertEquals('bar', r3.selector)
-        r4 = patch.recv()
+        r4 = patch.Recv()
         self.assertEquals('_recv_1', r4.selector)
-        r5 = patch.recv()
+        r5 = patch.Recv()
         self.assertEquals('_recv_2', r5.selector)
 
 

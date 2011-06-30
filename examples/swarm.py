@@ -36,18 +36,19 @@ def draw(patch):
     global hzs, lopf
 
     patch.clear()
-    hzs = [patch.recv('hz-%d' % i) for i in range(CT)]
-    oscs = [patch.phasor_(rand_freq()) for i in range(CT)]
-    vol = patch.times_(0.04)
-    lopf = patch.recv('lopf')
-    lop = patch.lop_(10000)
-    dac = patch.dac_()
+    hzs = [patch.Recv('hz-%d' % i) for i in range(CT)]
+    oscs = [patch.Phasor_(rand_freq()) for i in range(CT)]
+    vol = patch.Times_(0.04)
+    lopf = patch.Recv('lopf')
+    lop = patch.Lop_(10000)
+    dac = patch.Dac_()
 
     for hz, osc in zip(hzs, oscs):
         hz.patch(osc)
         osc.patch(vol)
     lopf.patch(lop, 0, 1)
     vol.patch(lop).patch(dac)
+    lop.patch(dac, 0, 1)
     patch.render()
 
 def swarm():
