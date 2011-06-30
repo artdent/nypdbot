@@ -74,6 +74,7 @@ class Mta:
 
     def _enqueue(self, ev, delay):
         """Schedule an event."""
+        assert isinstance(delay, TimePoint)
         heapq.heappush(self.scheduler,
                        ScheduledEvent(ev, self.bpm, copy.copy(delay)))
 
@@ -90,7 +91,7 @@ class Mta:
           The delay (in ms) until the next event, or None if there are
         no more events.
         """
-        logging.debug('firing events at %s', self.tm)
+        logging.debug('firing events at %0.0f', self.tm or 0)
         if self.tm is None:
             self.tm = self._now()
         else:
