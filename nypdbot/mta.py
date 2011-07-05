@@ -64,19 +64,24 @@ class Mta:
     Attributes:
       bpm: beats per minute, used for enqueueing time measured in beats.
       scheduler: a heap of upcoming events.
+      tm: the current absolute time in milliseconds.
     """
     def __init__(self, bpm):
         self.bpm = bpm
         self.scheduler = []
+        self.tm = None
 
     def add(self, f):
         """Add an iterator to the scheduler."""
+        if not self.tm:
+            # Lazily initialize the clock if necessary.
+            self.tm = self._now()
         self._enqueue(f, Time(0))
 
     def _enqueue(self, ev, delay):
         """Schedule an event."""
         assert isinstance(delay, RelativeTime)
-        abs_time_ms = self._now() + delay.to_ms(self.bpm)
+        abs_time_ms = self.tm + delay.to_ms(self.bpm)
         heapq.heappush(self.scheduler, ScheduledEvent(ev, abs_time_ms))
 
     def _sleep(self, delay_ms):
@@ -86,17 +91,17 @@ class Mta:
         return time.time() * 1000
 
     def tick(self):
-        """Fires any events that are ready.
+        """Advances the clock and fires any events that are ready.
 
         Returns:
           The delay (in ms) until the next event, or None if there are
         no more events.
         """
-        now = self._now()
-        logging.debug('firing events at %0.0f', now)
-        while self.scheduler and self.scheduler[0].abs_time_ms <= now:
+        self.tm = self._now()
+        logging.debug('firing events at %0.0f', self.tm)
+        while self.scheduler and self.scheduler[0].abs_time_ms <= self.tm:
             ev = heapq.heappop(self.scheduler)
-            delay_ms = ev.abs_time_ms - now
+            delay_ms = ev.abs_time_ms - self.tm
             if delay_ms < -10:
                 logging.warn('fell behind by', abs(delay_ms), 'ms')
             self._fire_event(ev)
