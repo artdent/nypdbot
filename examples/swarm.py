@@ -36,7 +36,7 @@ def draw(patch):
     global hzs, lopf
 
     patch.clear()
-    hzs = [patch.Recv('hz-%d' % i) for i in range(CT)]
+    hzs = [patch.Recv() for i in range(CT)]
     oscs = [patch.Phasor_(rand_freq()) for i in range(CT)]
     vol = patch.Times_(0.04)
     lopf = patch.Recv('lopf')
