@@ -25,7 +25,6 @@ This module is distributed as part of nypdbot, but it could easily be used
 standalone.
 """
 
-import copy
 import functools
 import heapq
 import logging
@@ -40,20 +39,19 @@ __all__ = ['Mta', 'Beat', 'Time', 'forever', 'measure']
 
 @total_ordering
 class ScheduledEvent:
-    """An event scheduled to happen after a given delay."""
+    """An event scheduled to happen at a given absolute time."""
 
-    def __init__(self, data, bpm, delay):
-        self.bpm = bpm
-        self.delay = delay
+    def __init__(self, data, abs_time_ms):
         self.data = data
+        self.abs_time_ms = abs_time_ms
 
     def __lt__(self, other):
-        if not other.delay:
+        if not other.abs_time_ms:
             return False
-        return self.delay.to_ms(self.bpm) < other.delay.to_ms(self.bpm)
+        return self.abs_time_ms < other.abs_time_ms
 
     def __str__(self):
-        return 'Event @ %s' % self.delay
+        return 'Event @ %s' % self.abs_time_ms
 
 
 class Mta:
@@ -62,11 +60,14 @@ class Mta:
     This scheduler can be driven externally by calling the tick method
     as necessary, or you can call loop to sleep between events until
     all events are exhausted.
+
+    Attributes:
+      bpm: beats per minute, used for enqueueing time measured in beats.
+      scheduler: a heap of upcoming events.
     """
     def __init__(self, bpm):
         self.bpm = bpm
         self.scheduler = []
-        self.tm = None
 
     def add(self, f):
         """Add an iterator to the scheduler."""
@@ -74,9 +75,9 @@ class Mta:
 
     def _enqueue(self, ev, delay):
         """Schedule an event."""
-        assert isinstance(delay, TimePoint)
-        heapq.heappush(self.scheduler,
-                       ScheduledEvent(ev, self.bpm, copy.copy(delay)))
+        assert isinstance(delay, RelativeTime)
+        abs_time_ms = self._now() + delay.to_ms(self.bpm)
+        heapq.heappush(self.scheduler, ScheduledEvent(ev, abs_time_ms))
 
     def _sleep(self, delay_ms):
         time.sleep(delay_ms / 1000.0)
@@ -91,24 +92,16 @@ class Mta:
           The delay (in ms) until the next event, or None if there are
         no more events.
         """
-        logging.debug('firing events at %0.0f', self.tm or 0)
-        if self.tm is None:
-            self.tm = self._now()
-        else:
-            now = self._now()
-            # TODO: store absolute time instead of relative time
-            # to eliminate this step, which is linear in the number of events.
-            for ev in self.scheduler:
-                ev.delay.elapse(self.bpm, now - self.tm)
-            self.tm = now
-        while self.scheduler and self.scheduler[0].delay.to_ms(self.bpm) <= 0:
+        now = self._now()
+        logging.debug('firing events at %0.0f', now)
+        while self.scheduler and self.scheduler[0].abs_time_ms <= now:
             ev = heapq.heappop(self.scheduler)
-            delay_ms = ev.delay.to_ms(self.bpm)
+            delay_ms = ev.abs_time_ms - now
             if delay_ms < -10:
                 logging.warn('fell behind by', abs(delay_ms), 'ms')
             self._fire_event(ev)
         if self.scheduler:
-            return self.scheduler[0].delay.to_ms(self.bpm)
+            return self.scheduler[0].abs_time_ms
 
     def _fire_event(self, event):
         next_delay = next(event.data, None)
@@ -132,25 +125,18 @@ def ms_to_beats(bpm, ms):
     return ms * bpm / (1000 * 60)
 
 
-class TimePoint:
+class RelativeTime:
     """A tempo-aware time point for scheduling an event."""
-
-    def elapse(self, bpm, ms):
-        """Decrement this point by the given number of milliseconds."""
-        raise NotImplementedError
 
     def to_ms(self, bpm):
         """Return this time point in milliseconds."""
         raise NotImplementedError
 
 
-class Beat(TimePoint):
+class Beat(RelativeTime):
     """A time point measured in beats."""
     def __init__(self, count=1):
         self.count = count
-
-    def elapse(self, bpm, ms):
-        self.count -= ms_to_beats(bpm, ms)
 
     def to_ms(self, bpm):
         return beats_to_ms(bpm, self.count)
@@ -159,13 +145,10 @@ class Beat(TimePoint):
         return 'Beat(%f)' % self.count
 
 
-class Time(TimePoint):
+class Time(RelativeTime):
     """A time point measured in milliseconds."""
     def __init__(self, ms):
         self.ms = ms
-
-    def elapse(self, bpm, ms):
-        self.ms -= ms
 
     def to_ms(self, bpm):
         return self.ms
