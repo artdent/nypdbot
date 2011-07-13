@@ -66,24 +66,37 @@ class Box:
         self.parent_canvas = parent_canvas
         self.name = name
         self.args = args
-        self.children = []
-        self.parents = []
+        self._children = collections.defaultdict(list)
+        self._parents = collections.defaultdict(list)
         self.rendered = False
 
     def patch(self, other, outlet=0, inlet=0):
-        self.children.append(Connection(self, other, outlet, inlet))
-        other.parents.append(self)
+        self._children[outlet].append(Connection(self, other, outlet, inlet))
+        other._parents[inlet].append(self)
         return other
+
+    def parents(self):
+        for i in sorted(self._parents):
+            for obj in self._parents[i]:
+                yield obj
+
+    def children(self):
+        for i in sorted(self._children):
+            for obj in self._children[i]:
+                yield obj
 
     def parent(self):
       """Return the left-most parent, if any."""
-      if self.parents:
-          return self.parents[0]
+      return next(self.parents(), None)
+
+    def child(self):
+      """Return the left-most child, if any."""
+      return next(self.children(), None)
 
     def __repr__(self):
         return '%s(%s %s)' % (
-                self.__class__.__name__, self.name,
-                ' '.join(str(arg) for arg in self.args))
+            self.__class__.__name__, self.name,
+            ' '.join(str(arg) for arg in self.args))
 
 
 @register
@@ -121,41 +134,55 @@ class Recv(Obj):
 
 
 class Placer:
-    """An extremely dumb object placer. TODO: write a better one."""
+    """A simple breadth-first object placer.."""
 
+    TOP = 10
     LEFT = 10
 
     def __init__(self):
-        self.top = 10
+        self.left = self.LEFT
         self.y_step = 20
-        self.x_step = 100
-        self.ys = {}
+        self.x_step = 80
+        self.coords = {}
         # Count of children of each object
         self.children = collections.defaultdict(int)
 
     def enter_test_mode(self):
         """For test purposes, place all objects at (-1, -1)."""
-        self.top = -1
-        self.LEFT = -1
+        # Better would be for the test to just use a fake placer,
+        # but until Placer has its own test, it's nice to use the real one
+        # to at least provide it some coverage.
+        self.TOP = -1
+        self.left = self.LEFT = -1
         self.y_step = 0
         self.x_step = 0
 
     def place_all(self, boxes):
-        return [self.place(box, box.parent()) for box in boxes]
+        to_place = [box for box in boxes if not box.parent()]
+        placed = {}
+        while to_place:
+            box = to_place.pop(0)
+            if box in self.coords:
+                continue
+            coords = self.place(box)
+            if not coords:
+                to_place.append(box)
+                continue
+            self.coords[box] = placed[box] = coords
+            to_place.extend(conn.dest for conn in box.children())
+        return placed
 
-    def place(self, obj, parent):
-        assert obj not in self.ys
-        if not parent or parent not in self.ys:
-            self.ys[obj] = self.top
-            self.top += self.y_step
-            return self.LEFT, self.top
-
+    def place(self, obj):
+        parent = obj.parent()
+        if not parent:
+            self.left += self.x_step
+            return self.left, self.TOP
+        if parent not in self.coords:
+            return
+        px, py = self.coords[parent]
+        left = px + self.x_step * self.children[parent]
+        top = py + self.y_step
         self.children[parent] += 1
-        top = self.ys[parent] + self.y_step
-        self.ys[obj] = top
-        left = self.LEFT + self.x_step * self.children[parent]
-        if top >= self.top:
-            self.top = top
         return left, top
 
 
@@ -215,10 +242,9 @@ class Canvas(Obj):
         # since the last time render() was called.
         connections = []
         for box in self.boxes:
-            connections.extend(box.children)
+            connections.extend(box.children())
         boxes_to_place = [box for box in self.boxes if not box.rendered]
-        coord_list = self._placer.place_all(boxes_to_place)
-        coords = dict(zip(boxes_to_place, coord_list))
+        coords = self._placer.place_all(boxes_to_place)
         start_id = len(self.ids)
         for i, box in enumerate(boxes_to_place):
             self.ids[box] = i + start_id
