@@ -121,8 +121,8 @@ def draw(p):
     amp = p.Times_()
     dac = p.Dac_()
     osc.patch(amp).patch(dac)
-    amp.patch(dac, 0, 1)
-    tap.out().patch(amp, 0, 1)
+    amp.patch(dac.in1)
+    tap.out().patch(amp.in1)
     p.render()
     return tap
 

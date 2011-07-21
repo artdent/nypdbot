@@ -66,13 +66,13 @@ class PdTest(unittest.TestCase):
         a = patch.A()
         b = patch.B()
         pdctl.Outlet(a, 1).patch(pdctl.Inlet(b, 2))
-        self.assertEquals([b], [conn.dest for conn in a.children()])
+        self.assertEquals([b], list(a.children()))
         self.assertEquals([a], list(b.parents()))
 
         a = patch.A()
         b = patch.B()
-        a.patch(b, 1, 2)
-        self.assertEquals([b], [conn.dest for conn in a.children()])
+        a.out1.patch(b.out2)
+        self.assertEquals([b], list(a.children()))
         self.assertEquals([a], list(b.parents()))
 
     def testSubpatch(self):

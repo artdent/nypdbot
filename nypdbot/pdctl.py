@@ -49,16 +49,21 @@ def register(cls):
 
 class Connection:
 
-    def __init__(self, src, dest, outlet, inlet):
-        self.src = src
-        self.dest = dest
+    def __init__(self, outlet, inlet):
         self.outlet = outlet
         self.inlet = inlet
         self.rendered = False
 
 
 class Box:
-    """Base class for all Pure Data boxes."""
+    """Base class for all Pure Data boxes.
+
+    For patching purposes, the attributes 'in0', 'in1', etc. refer to the
+    inlets of this box, and 'out0', 'out1', etc. refer to the outlets.
+    In addition, the box itself can be patched, which will connect the
+    leftmost outlet or inlet. That is, a.patch(b) is shorthand for
+    a.out0.patch(b.in0).
+    """
 
     CREATION_COMMAND = None
 
@@ -70,14 +75,21 @@ class Box:
         self._parents = collections.defaultdict(list)
         self.rendered = False
 
-    def patch(self, other, outlet=0, inlet=0):
-        if isinstance(other, Inlet):
-            assert inlet == 0
-            inlet = other.idx
-            other = other.box
-        self._children[outlet].append(Connection(self, other, outlet, inlet))
-        other._parents[inlet].append(self)
-        return other
+    def __getattr__(self, name):
+        if name.startswith('out'):
+            return Outlet(self, int(name[3:]))
+        elif name.startswith('in'):
+            return Inlet(self, int(name[2:]))
+        return getattr(super(), name)
+
+    def patch(self, other):
+        return self.out0.patch(other)
+
+    def _patch(self, inlet, outlet):
+        assert outlet.box is self
+        self._children[outlet.idx].append(Connection(outlet, inlet))
+        inlet.box._parents[inlet.idx].append(self)
+        return inlet.box
 
     def parents(self):
         """Yields the boxes connected to the inlets of this box."""
@@ -86,10 +98,15 @@ class Box:
                 yield obj
 
     def children(self):
+        """Yields the boxes connected to the outlets of this box."""
+        for conn in self.outgoing():
+            yield conn.inlet.box
+
+    def outgoing(self):
         """Yields Connection objects for the outlets of this box."""
         for i in sorted(self._children):
-            for obj in self._children[i]:
-                yield obj
+            for conn in self._children[i]:
+                yield conn
 
     def parent(self):
       """Return the left-most parent, if any."""
@@ -116,11 +133,13 @@ class Outlet:
         self.box = box
         self.idx = idx
 
-    def patch(self, other, outlet=0, inlet=0):
-        # We accept an outlet param to be compatible with Box,
-        # but specifying anything other than 0 is a logic error.
-        assert outlet == 0
-        self.box.patch(other, outlet=self.idx, inlet=inlet)
+    def patch(self, other):
+        """Connects this outlet to the given inlet."""
+        if (isinstance(other, Box)):
+            inlet = other.in0
+        else:
+            inlet = other
+        return self.box._patch(inlet, self)
 
 
 @register
@@ -193,7 +212,7 @@ class Placer:
                 to_place.append(box)
                 continue
             self.coords[box] = placed[box] = coords
-            to_place.extend(conn.dest for conn in box.children())
+            to_place.extend(box.children())
         return placed
 
     def place(self, obj):
@@ -266,7 +285,7 @@ class Canvas(Obj):
         # since the last time render() was called.
         connections = []
         for box in self.boxes:
-            connections.extend(box.children())
+            connections.extend(box.outgoing())
         boxes_to_place = [box for box in self.boxes if not box.rendered]
         coords = self._placer.place_all(boxes_to_place)
         start_id = len(self.ids)
@@ -280,8 +299,8 @@ class Canvas(Obj):
         for conn in connections:
             if not conn.rendered:
                 conn.rendered = True
-                yield ['connect', self.ids[conn.src], conn.outlet,
-                       self.ids[conn.dest], conn.inlet]
+                yield ['connect', self.ids[conn.outlet.box], conn.outlet.idx,
+                       self.ids[conn.inlet.box], conn.inlet.idx]
 
     def send_cmd(self, *args):
         """Sends a command to this canvas in Pure Data."""

@@ -46,9 +46,9 @@ def draw(patch):
     for hz, osc in zip(hzs, oscs):
         hz.patch(osc)
         osc.patch(vol)
-    lopf.patch(lop, 0, 1)
+    lopf.patch(lop.in1)
     vol.patch(lop).patch(dac)
-    lop.patch(dac, 0, 1)
+    lop.patch(dac.in1)
     patch.render()
 
 def swarm():
