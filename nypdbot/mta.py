@@ -106,7 +106,7 @@ class Mta:
                 logging.warn('fell behind by', abs(delay_ms), 'ms')
             self._fire_event(ev)
         if self.scheduler:
-            return self.scheduler[0].abs_time_ms
+            return self.scheduler[0].abs_time_ms - self.tm
 
     def _fire_event(self, event):
         next_delay = next(event.data, None)
