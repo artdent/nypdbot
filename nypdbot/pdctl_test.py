@@ -61,6 +61,20 @@ class PdTest(unittest.TestCase):
             ],
             self.sender.sent)
 
+    def testInletsAndOutlets(self):
+        patch = self.pd.main
+        a = patch.A()
+        b = patch.B()
+        pdctl.Outlet(a, 1).patch(pdctl.Inlet(b, 2))
+        self.assertEquals([b], [conn.dest for conn in a.children()])
+        self.assertEquals([a], list(b.parents()))
+
+        a = patch.A()
+        b = patch.B()
+        a.patch(b, 1, 2)
+        self.assertEquals([b], [conn.dest for conn in a.children()])
+        self.assertEquals([a], list(b.parents()))
+
     def testSubpatch(self):
         patch = self.pd.main
         sub = patch.canvas('foo')

@@ -71,16 +71,22 @@ class Box:
         self.rendered = False
 
     def patch(self, other, outlet=0, inlet=0):
+        if isinstance(other, Inlet):
+            assert inlet == 0
+            inlet = other.idx
+            other = other.box
         self._children[outlet].append(Connection(self, other, outlet, inlet))
         other._parents[inlet].append(self)
         return other
 
     def parents(self):
+        """Yields the boxes connected to the inlets of this box."""
         for i in sorted(self._parents):
             for obj in self._parents[i]:
                 yield obj
 
     def children(self):
+        """Yields Connection objects for the outlets of this box."""
         for i in sorted(self._children):
             for obj in self._children[i]:
                 yield obj
@@ -97,6 +103,24 @@ class Box:
         return '%s(%s %s)' % (
             self.__class__.__name__, self.name,
             ' '.join(str(arg) for arg in self.args))
+
+
+class Inlet:
+    def __init__(self, box, idx):
+        self.box = box
+        self.idx = idx
+
+
+class Outlet:
+    def __init__(self, box, idx):
+        self.box = box
+        self.idx = idx
+
+    def patch(self, other, outlet=0, inlet=0):
+        # We accept an outlet param to be compatible with Box,
+        # but specifying anything other than 0 is a logic error.
+        assert outlet == 0
+        self.box.patch(other, outlet=self.idx, inlet=inlet)
 
 
 @register
