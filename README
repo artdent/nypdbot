@@ -15,6 +15,9 @@ The public interface is made available in the "nypdbot" module.
 Typical usage is to open the driver.pd patch in Pure Data and then run your
 program. See examples/swarm.py as an example.
 
+Nypdbot is tested against python 2.6; it currently works on python 3 without
+modification, but this is not guaranteed.
+
 Implementation
 ==============
 
