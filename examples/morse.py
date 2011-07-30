@@ -88,7 +88,7 @@ class Adsr(object):
         self._send(0, self.rel)
 
 
-class Tapper:
+class Tapper(object):
 
     def __init__(self, p):
         self.env = Adsr(p, attack=20, decay=10, sustain=0.8, release=20)

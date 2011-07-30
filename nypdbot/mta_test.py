@@ -23,7 +23,7 @@ class UntimedMta(mta.Mta):
     """Version of MTA that doesn't actually sleep."""
 
     def __init__(self):
-        super().__init__(60)  # BPM doesn't matter
+        super(UntimedMta, self).__init__(60)  # BPM doesn't matter
         self.slept = 0
         self.events = 0
 
@@ -34,7 +34,7 @@ class UntimedMta(mta.Mta):
         return self.slept
 
     def _fire_event(self, ev):
-        super()._fire_event(ev)
+        super(UntimedMta, self)._fire_event(ev)
         self.events += 1
 
 
@@ -73,13 +73,13 @@ class MtaTest(unittest.TestCase):
         self.assertEquals(['a', 'b'], self.output)
 
         scheduler._sleep(10)
-        self.assertIsNone(scheduler.tick())
+        self.assertEquals(None, scheduler.tick())
         self.assertEquals(2, scheduler.events)
         self.assertEquals(['a', 'b', 'c', 'd'], self.output)
 
-        self.assertIsNone(scheduler.tick())
+        self.assertEquals(None, scheduler.tick())
         scheduler._sleep(10)
-        self.assertIsNone(scheduler.tick())
+        self.assertEquals(None, scheduler.tick())
         self.assertEquals(['a', 'b', 'c', 'd'], self.output)
 
     def testReuseEvents(self):

@@ -26,9 +26,6 @@ Documentation on dynamic patching:
 http://wiki.dataflow.ws/DynamicPatching
 http://puredata.info/docs/tutorials/TipsAndTricks#undocumented-pd-internal-messages
 
-Nypdbot is written for Python 3 because why not. If that's inconvenient,
-let me know.
-
 Related Projects
 ================
 

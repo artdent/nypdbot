@@ -25,6 +25,8 @@ This module is distributed as part of nypdbot, but it could easily be used
 standalone.
 """
 
+from __future__ import print_function
+
 import functools
 import heapq
 import logging
@@ -38,7 +40,7 @@ __all__ = ['Mta', 'Beat', 'Time', 'forever', 'measure']
 
 
 @total_ordering
-class ScheduledEvent:
+class ScheduledEvent(object):
     """An event scheduled to happen at a given absolute time."""
 
     def __init__(self, data, abs_time_ms):
@@ -54,7 +56,7 @@ class ScheduledEvent:
         return 'Event @ %s' % self.abs_time_ms
 
 
-class Mta:
+class Mta(object):
     """Event scheduler. Stands for Metronomic Timing Activity.
 
     This scheduler can be driven externally by calling the tick method

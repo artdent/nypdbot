@@ -18,6 +18,8 @@
 Pure Data object graph manipulation library.
 """
 
+from __future__ import print_function
+
 import collections
 import logging
 import socket
@@ -42,12 +44,12 @@ SPECIAL_CHARACTERS = {
 PD_OBJECTS = {}
 
 def register(cls):
-    """Class decorator for declaring that a class is for creating a PD object."""
+    """Decorator declaring that a class is for creating a PD object."""
     PD_OBJECTS[cls.__name__] = cls
     return cls
 
 
-class Connection:
+class Connection(object):
 
     def __init__(self, outlet, inlet):
         self.outlet = outlet
@@ -55,7 +57,7 @@ class Connection:
         self.rendered = False
 
 
-class Box:
+class Box(object):
     """Base class for all Pure Data boxes.
 
     For patching purposes, the attributes 'in0', 'in1', etc. refer to the
@@ -80,7 +82,7 @@ class Box:
             return Outlet(self, int(name[3:]))
         elif name.startswith('in'):
             return Inlet(self, int(name[2:]))
-        return getattr(super(), name)
+        return getattr(super(Box, self), name)
 
     def patch(self, other):
         return self.out0.patch(other)
@@ -122,13 +124,13 @@ class Box:
             ' '.join(str(arg) for arg in self.args))
 
 
-class Inlet:
+class Inlet(object):
     def __init__(self, box, idx):
         self.box = box
         self.idx = idx
 
 
-class Outlet:
+class Outlet(object):
     def __init__(self, box, idx):
         self.box = box
         self.idx = idx
@@ -168,7 +170,7 @@ class Recv(Obj):
 
     def __init__(self, parent_canvas, selector=None):
         selector = selector or self.gen_name()
-        super().__init__(parent_canvas, 'r', selector)
+        super(Recv, self).__init__(parent_canvas, 'r', selector)
         self.selector = selector
 
     def send(self, *args):
@@ -176,7 +178,7 @@ class Recv(Obj):
         self.parent_canvas.pd.send_cmd(self.selector, *args)
 
 
-class Placer:
+class Placer(object):
     """A simple breadth-first object placer.."""
 
     TOP = 10
@@ -243,7 +245,7 @@ class Canvas(Obj):
     """
 
     def __init__(self, pd, parent_canvas, canvas_name, *args):
-        super().__init__(parent_canvas, 'pd', canvas_name, *args)
+        super(Canvas, self).__init__(parent_canvas, 'pd', canvas_name, *args)
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
@@ -313,7 +315,7 @@ class Canvas(Obj):
         self.send_cmd('clear')
 
 
-class PdSend:
+class PdSend(object):
     """Sends messages to Pure Data."""
     def __init__(self, port=SEND_PORT):
         self.conn = socket.create_connection(('localhost', port))
@@ -324,7 +326,7 @@ class PdSend:
         self.conn.send(cmd)
 
 
-class FakePdSend:
+class FakePdSend(object):
     def send(self, cmd):
         print(cmd)
 
@@ -339,7 +341,7 @@ def to_fudi(args):
     return msg.encode('utf-8')
 
 
-class Pd:
+class Pd(object):
     def __init__(self, sender=None):
         self.sender = sender or PdSend()
         self.main = Canvas(self, None, '__main__')
