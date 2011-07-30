@@ -332,7 +332,11 @@ class FakePdSend(object):
 
 
 def fudi_escape(arg):
-    return str(arg).replace(';', r'\;')
+    if hasattr(arg, 'to_fudi'):
+        serialized = arg.to_fudi()
+    else:
+        serialized = str(arg)
+    return serialized.replace(';', r'\;')
 
 
 def to_fudi(args):
