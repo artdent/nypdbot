@@ -24,6 +24,11 @@ import collections
 import logging
 import socket
 
+try:
+    from . import dotplacer
+except ImportError:
+    dotplacer = None
+
 __all__ = ['Pd']
 
 # This must match the port in driver.pd
@@ -227,8 +232,11 @@ class Placer(object):
         self.children[parent] += 1
         return left, top
 
-# Overrideable for testing
-PLACER_CLASS = Placer
+# If pygraphviz is available, use it for smarter object placement.
+if dotplacer:
+    PLACER_CLASS = dotplacer.DotPlacer
+else:
+    PLACER_CLASS = Placer
 
 
 @register
