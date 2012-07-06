@@ -74,8 +74,8 @@ class Box(object):
 
     CREATION_COMMAND = None
 
-    def __init__(self, parent_canvas, name, *args, **kwargs):
-        self.parent_canvas = parent_canvas
+    def __init__(self, pd, name, *args, **kwargs):
+        self.pd = pd
         self.name = name
         self.args = args
         self._children = collections.defaultdict(list)
@@ -93,7 +93,7 @@ class Box(object):
             return Outlet(self, int(name[3:]))
         elif name.startswith('in'):
             return Inlet(self, int(name[2:]))
-        return getattr(super(Box, self), name)
+        return super(Box, self).__getattr__(name)
 
     def patch(self, other):
         return self.out0.patch(other)
@@ -136,12 +136,20 @@ class Box(object):
 
 
 class Inlet(object):
+    """Representation of a numbered inlet of an object.
+
+    This is *not* a Pure Data [inlet] object.
+    """
     def __init__(self, box, idx):
         self.box = box
         self.idx = idx
 
 
 class Outlet(object):
+    """Representation of a numbered outlet of an object.
+
+    This is *not* a Pure Data [outlet] object.
+    """
     def __init__(self, box, idx):
         self.box = box
         self.idx = idx
@@ -205,14 +213,14 @@ class Recv(Obj):
         cls._recv_count += 1
         return '_recv_%d' % cls._recv_count
 
-    def __init__(self, parent_canvas, selector=None):
+    def __init__(self, pd, selector=None):
         selector = selector or self.gen_name()
-        super(Recv, self).__init__(parent_canvas, 'r', selector)
+        super(Recv, self).__init__(pd, 'r', selector)
         self.selector = selector
 
     def send(self, *args):
         """Sends a message to this recv object."""
-        self.parent_canvas.pd.send_cmd(self.selector, *args)
+        self.pd.send_cmd(self.selector, *args)
 
 
 class Placer(object):
@@ -279,13 +287,13 @@ class Canvas(Obj):
     render() is called. This is so the object placer can see the complete
     graph when deciding where to place objects.
 
-    Because __getattr__ is overloaded, you can use e.g. canvas.recv('foo')
+    Because __getattr__ is overloaded, you can use e.g. canvas.Recv('foo')
     to create a [recv foo] object. To create an audio-rate object like osc~,
-    use the Python-legal name canvas.osc_(440).
+    use the Python-legal name canvas.Osc_(440).
     """
 
-    def __init__(self, pd, parent_canvas, canvas_name, *args, **kwargs):
-        super(Canvas, self).__init__(parent_canvas, 'pd', canvas_name,
+    def __init__(self, pd, canvas_name, *args, **kwargs):
+        super(Canvas, self).__init__(pd, 'pd', canvas_name,
                                      *args, **kwargs)
         self.pd = pd
         self.canvas_name = canvas_name
@@ -299,23 +307,23 @@ class Canvas(Obj):
         return name
 
     def __getattr__(self, name):
-        def create(*args, **kwargs):
-            constructor = PD_OBJECTS.get(name)
-            if constructor:
-                box = constructor(self, *args, **kwargs)
-            else:
-                box = Obj(self, self._pd_obj_name(name), *args, **kwargs)
-            return self.add(box)
-        return create
+        if name[0].isupper():
+            def create(*args, **kwargs):
+                constructor = PD_OBJECTS.get(name)
+                if constructor:
+                    box = constructor(self.pd, *args, **kwargs)
+                else:
+                    box = Obj(self, self._pd_obj_name(name), *args, **kwargs)
+                return self.add(box)
+            return create
+        # Fall back on parent class, for inlet and outlet attributes.
+        return super(Canvas, self).__getattr__(name)
 
     def add(self, box):
         """Add the given box to the canvas."""
         self.boxes.append(box)
         # Chainable so you can write box = canvas.add(Box(...))
         return box
-
-    def canvas(self, name, *args):
-        return self.add(Canvas(self.pd, self, name, *args))
 
     def render(self):
         """Send all queued box and conn creation messages."""
@@ -333,6 +341,7 @@ class Canvas(Obj):
         placer = PLACER_CLASS()
         coords = placer.place_all(boxes_to_place)
 
+        # Keep track of the 0-based ids assigned by pure data.
         start_id = len(self.ids)
         for i, box in enumerate(boxes_to_place):
             self.ids[box] = i + start_id
@@ -342,6 +351,9 @@ class Canvas(Obj):
             assert box.CREATION_COMMAND
             yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
                    box.name] + list(box.args)
+            # Render the object if it is a subpatch.
+            if hasattr(box, 'render'):
+                box.render()
         for conn in connections:
             if not conn.rendered:
                 conn.rendered = True
@@ -391,7 +403,7 @@ def to_fudi(args):
 class Pd(object):
     def __init__(self, sender=None):
         self.sender = sender or PdSend()
-        self.main = Canvas(self, None, '__main__')
+        self.main = Canvas(self, '__main__')
 
     def dsp(self, on):
         self.send_cmd('pd', 'dsp', 1 if on else 0)
