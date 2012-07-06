@@ -31,7 +31,7 @@ class PdTest(unittest.TestCase):
     def setUp(self):
         self.sender = TestPdSend()
         self.pd = pdctl.Pd(sender=self.sender)
-        self.pd.main._placer.enter_test_mode()
+        pdctl.PLACER_CLASS = lambda: pdctl.Placer(test_mode=True)
 
     def testSmoke(self):
         # Add some arbitrary objects.

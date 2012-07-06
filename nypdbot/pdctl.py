@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # Copyright 2011 Jacob Lee.
 #
@@ -184,23 +184,20 @@ class Placer(object):
     TOP = 10
     LEFT = 10
 
-    def __init__(self):
+    def __init__(self, test_mode=False):
+        if test_mode:
+            # For test purposes, place all objects at (-1, -1).
+            self.TOP = -1
+            self.LEFT = -1
+            self.y_step = 0
+            self.x_step = 0
+        else:
+            self.y_step = 20
+            self.x_step = 80
         self.left = self.LEFT
-        self.y_step = 20
-        self.x_step = 80
         self.coords = {}
         # Count of children of each object
         self.children = collections.defaultdict(int)
-
-    def enter_test_mode(self):
-        """For test purposes, place all objects at (-1, -1)."""
-        # Better would be for the test to just use a fake placer,
-        # but until Placer has its own test, it's nice to use the real one
-        # to at least provide it some coverage.
-        self.TOP = -1
-        self.left = self.LEFT = -1
-        self.y_step = 0
-        self.x_step = 0
 
     def place_all(self, boxes):
         to_place = [box for box in boxes if not box.parent()]
@@ -230,6 +227,9 @@ class Placer(object):
         self.children[parent] += 1
         return left, top
 
+# Overrideable for testing
+PLACER_CLASS = Placer
+
 
 @register
 class Canvas(Obj):
@@ -249,7 +249,6 @@ class Canvas(Obj):
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
-        self._placer = Placer()
         self.ids = {}
 
     def _pd_obj_name(self, name):
@@ -288,11 +287,15 @@ class Canvas(Obj):
         connections = []
         for box in self.boxes:
             connections.extend(box.outgoing())
+
         boxes_to_place = [box for box in self.boxes if not box.rendered]
-        coords = self._placer.place_all(boxes_to_place)
+        placer = PLACER_CLASS()
+        coords = placer.place_all(boxes_to_place)
+
         start_id = len(self.ids)
         for i, box in enumerate(boxes_to_place):
             self.ids[box] = i + start_id
+
         for box in boxes_to_place:
             box.rendered = True
             assert box.CREATION_COMMAND
@@ -311,7 +314,6 @@ class Canvas(Obj):
     def clear(self):
         """Removes all boxes from this canvas."""
         self.boxes = []
-        self._placer = Placer()
         self.send_cmd('clear')
 
 
