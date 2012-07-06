@@ -74,13 +74,19 @@ class Box(object):
 
     CREATION_COMMAND = None
 
-    def __init__(self, parent_canvas, name, *args):
+    def __init__(self, parent_canvas, name, *args, **kwargs):
         self.parent_canvas = parent_canvas
         self.name = name
         self.args = args
         self._children = collections.defaultdict(list)
         self._parents = collections.defaultdict(list)
         self.rendered = False
+
+        for attr, other in kwargs.items():
+            if not isinstance(other, collections.Iterable):
+                other = [other]
+            for obj in other:
+                obj.patch(getattr(self, attr))
 
     def __getattr__(self, name):
         if name.startswith('out'):
@@ -153,6 +159,32 @@ class Outlet(object):
 class Msg(Box):
     """A [message( box."""
     CREATION_COMMAND = 'msg'
+
+@register
+class Number(Box):
+    """A number box."""
+    CREATION_COMMAND = 'floatatom'
+
+@register
+class Symbol(Box):
+    """A symbol box."""
+    CREATION_COMMAND = 'symbolatom'
+
+@register
+class Bang(Box):
+    """A [bang] box."""
+    CREATION_COMMAND = 'bng'
+
+@register
+class HSlider(Box):
+    """A [message( box."""
+    CREATION_COMMAND = 'hsl'
+
+
+@register
+class VSlider(Box):
+    """A [message( box."""
+    CREATION_COMMAND = 'vsl'
 
 
 @register
@@ -252,8 +284,9 @@ class Canvas(Obj):
     use the Python-legal name canvas.osc_(440).
     """
 
-    def __init__(self, pd, parent_canvas, canvas_name, *args):
-        super(Canvas, self).__init__(parent_canvas, 'pd', canvas_name, *args)
+    def __init__(self, pd, parent_canvas, canvas_name, *args, **kwargs):
+        super(Canvas, self).__init__(parent_canvas, 'pd', canvas_name,
+                                     *args, **kwargs)
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
@@ -266,12 +299,12 @@ class Canvas(Obj):
         return name
 
     def __getattr__(self, name):
-        def create(*args):
+        def create(*args, **kwargs):
             constructor = PD_OBJECTS.get(name)
             if constructor:
-                box = constructor(self, *args)
+                box = constructor(self, *args, **kwargs)
             else:
-                box = Obj(self, self._pd_obj_name(name), *args)
+                box = Obj(self, self._pd_obj_name(name), *args, **kwargs)
             return self.add(box)
         return create
 
