@@ -75,6 +75,9 @@ class Box(object):
     CREATION_COMMAND = None
 
     def __init__(self, pd, name, *args, **kwargs):
+        if any(isinstance(arg, Box) for arg in args):
+            raise TypeError(
+                'Object parents may be passed only as keyword arguments.')
         self.pd = pd
         self.name = name
         self.args = args
@@ -167,6 +170,9 @@ class Outlet(object):
 class Msg(Box):
     """A [message( box."""
     CREATION_COMMAND = 'msg'
+
+    # N.B. To get a message like "1 2, 3 4", call:
+    # Msg(1, 2, ',', 3, 4)
 
 @register
 class Number(Box):
@@ -292,9 +298,11 @@ class Canvas(Obj):
     use the Python-legal name canvas.Osc_(440).
     """
 
-    def __init__(self, pd, canvas_name, *args, **kwargs):
-        super(Canvas, self).__init__(pd, 'pd', canvas_name,
-                                     *args, **kwargs)
+    def __init__(self, pd, canvas_name, *args):
+        # TODO: **kwargs not supported here, as the connection commands would
+        # come from the child patch when they need to come from
+        # the parent patch.
+        super(Canvas, self).__init__(pd, 'pd', canvas_name, *args)
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
@@ -391,7 +399,7 @@ def fudi_escape(arg):
         serialized = arg.to_fudi()
     else:
         serialized = str(arg)
-    return serialized.replace(';', r'\;')
+    return serialized.replace(';', r'\;').replace(',', r'\,')
 
 
 def to_fudi(args):
