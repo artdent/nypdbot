@@ -77,7 +77,7 @@ class PdTest(unittest.TestCase):
 
     def testSubpatch(self):
         patch = self.pd.main
-        sub = patch.canvas('foo')
+        sub = patch.Canvas('foo')
         patch.render()
         self.assertEquals(
             [b'pd-__main__ obj -1 -1 pd foo;'],
@@ -85,7 +85,7 @@ class PdTest(unittest.TestCase):
 
     def testSubpatch_args(self):
         patch = self.pd.main
-        sub = patch.canvas('foo', 1, 2)
+        sub = patch.Canvas('foo', 1, 2)
         patch.render()
         self.assertEquals(
             [b'pd-__main__ obj -1 -1 pd foo 1 2;'],

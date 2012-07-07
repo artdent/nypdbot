@@ -95,7 +95,7 @@ class Box(object):
             return Outlet(self, int(name[3:]))
         elif name.startswith('in'):
             return Inlet(self, int(name[2:]))
-        return super(Box, self).__getattr__(name)
+        raise AttributeError(name)
 
     def patch(self, other):
         return self.out0.patch(other)
