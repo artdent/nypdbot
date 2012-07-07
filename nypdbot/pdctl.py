@@ -74,12 +74,11 @@ class Box(object):
 
     CREATION_COMMAND = None
 
-    def __init__(self, pd, name, *args, **kwargs):
+    def __init__(self, pd, *args, **kwargs):
         if any(isinstance(arg, Box) for arg in args):
             raise TypeError(
                 'Object parents may be passed only as keyword arguments.')
         self.pd = pd
-        self.name = name
         self.args = args
         self._children = collections.defaultdict(list)
         self._parents = collections.defaultdict(list)
@@ -139,8 +138,8 @@ class Box(object):
       return next(self.children(), None)
 
     def __repr__(self):
-        return '%s(%s %s)' % (
-            self.__class__.__name__, self.name,
+        return '%s(%s)' % (
+            self.__class__.__name__,
             ' '.join(str(arg) for arg in self.args))
 
 
@@ -180,6 +179,10 @@ class Msg(Box):
     # N.B. To get a message like "1 2, 3 4", call:
     # Msg(1, 2, ',', 3, 4)
 
+    def __init__(self, *args, **kwargs):
+        args = tuple(arg.replace(',', r'\,') for arg in args)
+        super(Msg, self).__init__(*args, **kwargs)
+
 @register
 class Number(Box):
     """A number box."""
@@ -212,6 +215,9 @@ class Obj(Box):
     """A generic object box, e.g. [print foo]."""
     CREATION_COMMAND = 'obj'
 
+    def __init__(self, *args, **kwargs):
+        super(Obj, self).__init__(*args, **kwargs)
+        self.name = args[0]  # Convenience alias
 
 @register
 class Recv(Obj):
@@ -363,8 +369,8 @@ class Canvas(Obj):
         for box in boxes_to_place:
             box.rendered = True
             assert box.CREATION_COMMAND
-            yield [box.CREATION_COMMAND, coords[box][0], coords[box][1],
-                   box.name] + list(box.args)
+            cmd = [box.CREATION_COMMAND, coords[box][0], coords[box][1]]
+            yield cmd + list(box.args)
             # Render the object if it is a subpatch.
             if hasattr(box, 'render'):
                 box.render()
@@ -405,7 +411,7 @@ def fudi_escape(arg):
         serialized = arg.to_fudi()
     else:
         serialized = str(arg)
-    return serialized.replace(';', r'\;').replace(',', r'\,')
+    return serialized.replace(';', r'\;')
 
 
 def to_fudi(args):
