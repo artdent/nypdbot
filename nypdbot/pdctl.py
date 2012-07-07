@@ -107,6 +107,12 @@ class Box(object):
         inlet.box._parents[inlet.idx].append(self)
         return inlet.box
 
+    def inlet_count(self):
+        return len(self._parents)
+
+    def outlet_count(self):
+        return len(self._children)
+
     def parents(self):
         """Yields the boxes connected to the inlets of this box."""
         for i in sorted(self._parents):
