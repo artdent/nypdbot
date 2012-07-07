@@ -15,7 +15,7 @@ The public interface is made available in the "nypdbot" module.
 Typical usage is to open the driver.pd patch in Pure Data and then run your
 program. See examples/swarm.py as an example.
 
-Nypdbot is tested against python 2.6; it currently works on python 3 without
+Nypdbot is tested against python 2.7; it currently works on python 3 without
 modification, but this is not guaranteed.
 
 Implementation
@@ -56,8 +56,9 @@ TODO
 ====
 
 - More tests
-- Subcanvas support
 - Deleting connections and objects
+- Enumerating and manipulating active shards
+- Integration with code.interact for live manipulation of pd
 - Examples that demonstrate adding shards to mta during the event loop
 - Examples that demonstrate manipulating the pd object graph during the
   event loop

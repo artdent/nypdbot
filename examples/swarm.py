@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # Copyright 2011 Jacob Lee.
 #

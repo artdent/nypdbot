@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # Copyright 2011 Jacob Lee.
 #
@@ -75,6 +75,7 @@ class Mta(object):
 
     def add(self, f):
         """Add an iterator to the scheduler."""
+        # TODO: return a stream handle which can be used to kill the iterator.
         if not self.tm:
             # Lazily initialize the clock if necessary.
             self.tm = self._now()
