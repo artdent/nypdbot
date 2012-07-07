@@ -37,18 +37,12 @@ def draw(patch):
 
     patch.clear()
     hzs = [patch.Recv() for i in range(CT)]
-    oscs = [patch.Phasor_(rand_freq()) for i in range(CT)]
-    vol = patch.Times_(0.04)
+    oscs = [patch.Phasor_(rand_freq(), in0=hzs[i]) for i in range(CT)]
+    vol = patch.Times_(0.04, in0=oscs)
     lopf = patch.Recv('lopf')
-    lop = patch.Lop_(10000)
-    dac = patch.Dac_()
+    lop = patch.Lop_(10000, in0=vol, in1=lopf)
+    dac = patch.Dac_(in0=lop, in1=lop)
 
-    for hz, osc in zip(hzs, oscs):
-        hz.patch(osc)
-        osc.patch(vol)
-    lopf.patch(lop.in1)
-    vol.patch(lop).patch(dac)
-    lop.patch(dac.in1)
     patch.render()
 
 def swarm():
@@ -71,7 +65,6 @@ def main():
     pd = nypdbot.Pd()
     scheduler = nypdbot.Mta(120)
 
-    pd.main.clear()
     draw(pd.main)
     scheduler.add(swarm())
     scheduler.loop()
