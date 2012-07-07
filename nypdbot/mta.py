@@ -105,7 +105,7 @@ class Mta(object):
             ev = heapq.heappop(self.scheduler)
             delay_ms = ev.abs_time_ms - self.tm
             if delay_ms < -10:
-                logging.warn('fell behind by', abs(delay_ms), 'ms')
+                logging.warn('fell behind by %0.2f ms', abs(delay_ms))
             self._fire_event(ev)
         if self.scheduler:
             return self.scheduler[0].abs_time_ms - self.tm
