@@ -77,6 +77,11 @@ class Box(object):
         self._parents = collections.defaultdict(list)
         self.rendered = False
 
+        # These will be set when the box is placed on the parent patch.
+        self.x = None
+        self.y = None
+        self.id = None
+
         for attr, other in kwargs.items():
             if not isinstance(other, collections.Iterable):
                 other = [other]
@@ -100,9 +105,18 @@ class Box(object):
     def patch(self, other):
         return self.out0.patch(other)
 
-    def _creation_commands(self, coords):
+    def place(self, coords, box_id):
+        self.x, self.y = coords
+        self.id = box_id
+        return self._creation_commands()
+
+    def is_placed(self):
+        return bool(self.x)
+
+    def _creation_commands(self):
         assert self.CREATION_COMMAND
-        cmd = [self.CREATION_COMMAND] + list(coords) + list(self.args)
+
+        cmd = [self.CREATION_COMMAND, self.x, self.y] + list(self.args)
         return [cmd]
 
     def _patch(self, inlet, outlet):
@@ -206,12 +220,16 @@ class Gui(Box):
         super(Gui, self).__init__(pd, name, **kwargs)
         self.name = name
 
-    def _creation_commands(self, coords):
+    def _creation_commands(self):
+        assert self.CREATION_COMMAND
+
         cmds = []
         cmds.append([self.CREATION_COMMAND, self.name])
+        # Graphical objects do not accept placement coordinates in their
+        # creation command. Instead, one must simulate mouse movements.
         # No idea what the numbers after coords are for.
-        cmds.append(['motion', coords[0], coords[1], 0])
-        cmds.append(['mouseup', coords[0], coords[1], 1, 0])
+        cmds.append(['motion', self.x, self.y, 0])
+        cmds.append(['mouseup', self.x, self.y, 1, 0])
         # Deselect the object.
         cmds.append(['mouse', 4, 4, 1, 0])
         cmds.append(['mouseup', 4, 4, 1, 0])
@@ -386,7 +404,8 @@ class Canvas(Obj):
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
-        self.ids = {}
+        self.next_box_id = 0  # Track the 0-based ids assigned by pure data.
+        self.interactive = False
         if self.canvas_name == '__main__':
             # The main patch already exists in driver.pd.
             self.rendered = True
@@ -412,37 +431,46 @@ class Canvas(Obj):
     def add(self, box):
         """Add the given box to the canvas."""
         self.boxes.append(box)
+        if self.interactive:
+            # TODO: determine coordinates.
+            self._render_box(box, (10, 10))
         # Chainable so you can write box = canvas.add(Box(...))
         return box
 
     def render(self):
-        # TODO: only generate commands for boxes and conns that are new
-        # since the last time render() was called.
-        connections = []
-        for box in self.boxes:
-            connections.extend(box.outgoing())
+        """Renders all unrendered children of this patch.
 
-        boxes_to_place = [box for box in self.boxes if not box.rendered]
+        Calling render() also places the patch into interactive mode,
+        where future object additions happen right away. Set the
+        interactive attribute to False to go back to batch mode.
+        """
+        boxes_to_place = [box for box in self.boxes if not box.is_placed()]
         placer = PLACER_CLASS()
         coords = placer.place_all(boxes_to_place)
 
-        # Keep track of the 0-based ids assigned by pure data.
-        start_id = len(self.ids)
-        for i, box in enumerate(boxes_to_place):
-            self.ids[box] = i + start_id
-
         for box in boxes_to_place:
-            box.rendered = True
-            for cmd in box._creation_commands(coords[box]):
-                self.send_cmd(*cmd)
-            if hasattr(box, 'render'):
-                box.render()
-        for conn in connections:
-            if not conn.rendered:
-                conn.rendered = True
-                self.send_cmd(
-                    'connect', self.ids[conn.outlet.box], conn.outlet.idx,
-                    self.ids[conn.inlet.box], conn.inlet.idx)
+            self._render_box(box, coords[box])
+
+        for box in self.boxes:
+            for conn in box.outgoing():
+                self._maybe_render_conn(conn)
+
+        self.interactive = True
+
+    def _render_box(self, box, coords):
+        creation_commands = box.place(coords, self.next_box_id)
+        self.next_box_id += 1
+        for cmd in creation_commands:
+            self.send_cmd(*cmd)
+        if hasattr(box, 'render'):
+            box.render()
+
+    def _maybe_render_conn(self, conn):
+        if not conn.rendered:
+            conn.rendered = True
+            self.send_cmd(
+                'connect', conn.outlet.box.id, conn.outlet.idx,
+                conn.inlet.box.id, conn.inlet.idx)
 
     def send_cmd(self, *args):
         """Sends a command to this canvas in Pure Data."""

@@ -60,6 +60,9 @@ class PdTest(unittest.TestCase):
                 b'pd dsp 1;',
             ],
             self.sender.sent)
+        self.assertTrue(patch.interactive)
+        for box in patch.boxes:
+            self.assertTrue(box.is_placed())
 
     def testInletsAndOutlets(self):
         patch = self.pd.main
