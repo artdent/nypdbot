@@ -238,8 +238,8 @@ class Obj(Box):
     """A generic object box, e.g. [print foo]."""
     CREATION_COMMAND = 'obj'
 
-    def __init__(self, *args, **kwargs):
-        super(Obj, self).__init__(*args, **kwargs)
+    def __init__(self, pd, *args, **kwargs):
+        super(Obj, self).__init__(pd, *args, **kwargs)
         self.name = args[0]  # Convenience alias
 
 @register
@@ -338,6 +338,7 @@ _SPECIAL_NAMES = {
 }
 
 def _pd_obj_name(name):
+    """Translates a python attribute name into a Pure Data object name."""
     # Place a hyphen before every non-initial [A-Z].
     name = _CAPS_RE.sub(lambda m: '%s-%s' % m.groups(), name).lower()
 
@@ -362,6 +363,11 @@ class Canvas(Obj):
     Because __getattr__ is overloaded, you can use e.g. canvas.Recv('foo')
     to create a [recv foo] object. To create an audio-rate object like osc~,
     use the Python-legal name canvas.Osc_(440).
+
+    To create an object like [<~ 0.5], you may find it easier to call
+    p.Obj('<~', 0.5) than to remember the Python-legal alternate name
+    p.Lt_(0.5). In addition, this is an escape hatch in case an object
+    is not expressible as a Python-legal name.
     """
 
     def __init__(self, pd, canvas_name, *args):
@@ -382,16 +388,10 @@ class Canvas(Obj):
             # Fall back on parent class, for inlet and outlet attributes.
             return super(Canvas, self).__getattr__(name)
         # Uppercased or special-character attributes are for object creation.
-        return self.Obj(name)
+        return self._create_object(name)
 
-    def Obj(self, name):
-        """Convenience alias for getattr, useful for special symbols.
-
-        To create an object like [<~ 0.5], you may find it easier to call
-        p.Obj('<~')(0.5) than to remember the Python-legal alternate name
-        p.Lt_(0.5). In addition, this is an escape hatch in case an object
-        is not expressible as a Python-legal name.
-        """
+    def _create_object(self, name):
+        """Create a Pure Data object."""
         def create(*args, **kwargs):
             constructor = PD_OBJECTS.get(name)
             if constructor:

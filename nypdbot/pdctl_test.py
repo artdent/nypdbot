@@ -106,17 +106,31 @@ class PdTest(unittest.TestCase):
 
     def testSpecialObjectNames(self):
         for attr, replacement in [
-            ('Foo', 'foo'),
-            ('FooBarBaz', 'foo-bar-baz'),
-            ('Foo_', 'foo~'),
-            ('FooBarBaz_', 'foo-bar-baz~'),
-            ('Foo__bar__baz', 'foo/bar/baz'),
-            ('Plus', '+'),
-            ('Div', '/'),
-            ('Noteq', '!='),
-            ]:
+                ('Foo', 'foo'),
+                ('FooBarBaz', 'foo-bar-baz'),
+                ('Foo_', 'foo~'),
+                ('FooBarBaz_', 'foo-bar-baz~'),
+                ('Foo__bar__baz', 'foo/bar/baz'),
+                ('Plus', '+'),
+                ('Div', '/'),
+                ('Noteq', '!='),
+                ]:
             self.assertEquals(replacement, pdctl._pd_obj_name(attr))
 
+    def testGetattr(self):
+        """Tests for object class registration and access via getattr."""
+        patch = self.pd.main
+
+        obj = patch.Lt_(0.5)
+        self.assertEquals('<~', obj.name)
+        self.assertEquals(('<~', 0.5), obj.args)
+
+        alternate = patch.Obj('<~', 0.5)
+        self.assertEquals('<~', alternate.name)
+        self.assertEquals(('<~', 0.5), alternate.args)
+
+        bang = patch.Bang()
+        self.assertTrue(isinstance(bang, pdctl.Bang))
 
 if __name__ == '__main__':
     unittest.main()
