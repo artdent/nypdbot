@@ -73,6 +73,7 @@ class Box(object):
     """
 
     CREATION_COMMAND = None
+    _unique_name_count = -1
 
     def __init__(self, pd, *args, **kwargs):
         if any(isinstance(arg, Box) for arg in args):
@@ -90,6 +91,13 @@ class Box(object):
             for obj in other:
                 obj.patch(getattr(self, attr))
 
+    @classmethod
+    def gen_name(cls, prefix=None):
+        """Generates a unique selector name."""
+        cls._unique_name_count += 1
+        prefix = prefix or cls.CREATION_COMMAND
+        return '_%s_%d' % (prefix, cls._unique_name_count)
+
     def __getattr__(self, name):
         if name.startswith('out'):
             return Outlet(self, int(name[3:]))
@@ -99,6 +107,11 @@ class Box(object):
 
     def patch(self, other):
         return self.out0.patch(other)
+
+    def _creation_commands(self, coords):
+        assert self.CREATION_COMMAND
+        cmd = [self.CREATION_COMMAND] + list(coords) + list(self.args)
+        return [cmd]
 
     def _patch(self, inlet, outlet):
         assert outlet.box is self
@@ -193,21 +206,39 @@ class Symbol(Box):
     """A symbol box."""
     CREATION_COMMAND = 'symbolatom'
 
+class Gui(Box):
+    """A graphical box."""
+
+    def __init__(self, pd, name=None, **kwargs):
+        name = name or self.gen_name()
+        super(Gui, self).__init__(pd, name, **kwargs)
+        self.name = name
+
+    def _creation_commands(self, coords):
+        cmds = []
+        cmds.append([self.CREATION_COMMAND, self.name])
+        # No idea what the numbers after coords are for.
+        cmds.append(['motion', coords[0], coords[1], 0])
+        cmds.append(['mouseup', coords[0], coords[1], 1, 0])
+        # Deselect the object.
+        cmds.append(['mouse', 4, 4, 1, 0])
+        cmds.append(['mouseup', 4, 4, 1, 0])
+        return cmds
+
 @register
-class Bang(Box):
+class Bang(Gui):
     """A [bang] box."""
     CREATION_COMMAND = 'bng'
 
 @register
-class HSlider(Box):
+class HSlider(Gui):
     """A [message( box."""
-    CREATION_COMMAND = 'hsl'
-
+    CREATION_COMMAND = 'hslider'
 
 @register
-class VSlider(Box):
+class VSlider(Gui):
     """A [message( box."""
-    CREATION_COMMAND = 'vsl'
+    CREATION_COMMAND = 'vslider'
 
 
 @register
@@ -223,16 +254,8 @@ class Obj(Box):
 class Recv(Obj):
     """An [r] object."""
 
-    _recv_count = -1
-
-    @classmethod
-    def gen_name(cls):
-        """Generates a unique selector name."""
-        cls._recv_count += 1
-        return '_recv_%d' % cls._recv_count
-
     def __init__(self, pd, selector=None):
-        selector = selector or self.gen_name()
+        selector = selector or self.gen_name('recv')
         super(Recv, self).__init__(pd, 'r', selector)
         self.selector = selector
 
@@ -319,6 +342,9 @@ class Canvas(Obj):
         self.canvas_name = canvas_name
         self.boxes = []
         self.ids = {}
+        if self.canvas_name == '__main__':
+            # The main patch already exists in driver.pd.
+            self.rendered = True
 
     def _pd_obj_name(self, name):
         name = name.lower()
@@ -346,11 +372,6 @@ class Canvas(Obj):
         return box
 
     def render(self):
-        """Send all queued box and conn creation messages."""
-        for cmd in self._creation_commands():
-            self.send_cmd(*cmd)
-
-    def _creation_commands(self):
         # TODO: only generate commands for boxes and conns that are new
         # since the last time render() was called.
         connections = []
@@ -368,17 +389,16 @@ class Canvas(Obj):
 
         for box in boxes_to_place:
             box.rendered = True
-            assert box.CREATION_COMMAND
-            cmd = [box.CREATION_COMMAND, coords[box][0], coords[box][1]]
-            yield cmd + list(box.args)
-            # Render the object if it is a subpatch.
+            for cmd in box._creation_commands(coords[box]):
+                self.send_cmd(*cmd)
             if hasattr(box, 'render'):
                 box.render()
         for conn in connections:
             if not conn.rendered:
                 conn.rendered = True
-                yield ['connect', self.ids[conn.outlet.box], conn.outlet.idx,
-                       self.ids[conn.inlet.box], conn.inlet.idx]
+                self.send_cmd(
+                    'connect', self.ids[conn.outlet.box], conn.outlet.idx,
+                    self.ids[conn.inlet.box], conn.inlet.idx)
 
     def send_cmd(self, *args):
         """Sends a command to this canvas in Pure Data."""
