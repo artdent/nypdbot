@@ -104,6 +104,19 @@ class PdTest(unittest.TestCase):
         r5 = patch.Recv()
         self.assertEquals('_recv_2', r5.selector)
 
+    def testSpecialObjectNames(self):
+        for attr, replacement in [
+            ('Foo', 'foo'),
+            ('FooBarBaz', 'foo-bar-baz'),
+            ('Foo_', 'foo~'),
+            ('FooBarBaz_', 'foo-bar-baz~'),
+            ('Foo__bar__baz', 'foo/bar/baz'),
+            ('Plus', '+'),
+            ('Div', '/'),
+            ('Noteq', '!='),
+            ]:
+            self.assertEquals(replacement, pdctl._pd_obj_name(attr))
+
 
 if __name__ == '__main__':
     unittest.main()

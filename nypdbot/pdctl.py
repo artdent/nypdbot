@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import collections
 import logging
+import re
 import socket
 
 try:
@@ -33,15 +34,6 @@ __all__ = ['Pd']
 
 # This must match the port in driver.pd
 SEND_PORT = 2001
-
-# Table of Python-legal replacements for special characters in object names.
-SPECIAL_CHARACTERS = {
-    '_': '~',
-    'plus': '+',
-    'minus': '-',
-    'times': '*',
-    'div': '/',
-    }
 
 # Classes for creating particular PD objects. Obj can be used to create any
 # object, but you can register a class here to provide more specialized methods.
@@ -320,6 +312,45 @@ else:
     PLACER_CLASS = Placer
 
 
+# Table of Python-legal replacements for special characters in object names.
+# In addition, CamelCasedName becomes camel-cased-name.
+# For example, p.FooBarBaz_() becomes [foo-bar-baz~], and p.Eqeq() becomes [==].
+# This is confusing, but Python allows a paucity of symbols in identifiers.
+# If this table proves inadequate, the fallback is to use p.Obj('==').
+_SPECIAL_CHARACTERS = {
+    '__': '/', # Dir__name is nicer than Dirdivname
+    '_': '~',
+    'plus': '+',
+    'minus': '-',
+    'times': '*',
+    'div': '/',
+    'lt': '<',
+    'gt': '>',
+    'eq': '=',
+    'not': '!',
+    'or': '|',
+    'and': '&',
+}
+_CAPS_RE = re.compile(r'(.)([A-Z])')
+
+# Table of special object names, with optional trailing tilde.
+_SPECIAL_NAMES = {
+}
+
+def _pd_obj_name(name):
+    # Place a hyphen before every non-initial [A-Z].
+    name = _CAPS_RE.sub(lambda m: '%s-%s' % m.groups(), name).lower()
+
+    # Do replacements in decreasing order of length
+    # so that __ -> / is applied before _ -> ~.
+    replacements = sorted(_SPECIAL_CHARACTERS.items(),
+                          key=lambda (py_name, pd_name): len(py_name),
+                          reverse=True)
+    for python_name, pd_name in replacements:
+        name = name.replace(python_name, pd_name)
+    return name
+
+
 @register
 class Canvas(Obj):
     """Reprents a Pd canvas, keeping track of objects added to it.
@@ -346,24 +377,29 @@ class Canvas(Obj):
             # The main patch already exists in driver.pd.
             self.rendered = True
 
-    def _pd_obj_name(self, name):
-        name = name.lower()
-        for python_name, pd_name in SPECIAL_CHARACTERS.items():
-            name = name.replace(python_name, pd_name)
-        return name
-
     def __getattr__(self, name):
-        if name[0].isupper():
-            def create(*args, **kwargs):
-                constructor = PD_OBJECTS.get(name)
-                if constructor:
-                    box = constructor(self.pd, *args, **kwargs)
-                else:
-                    box = Obj(self, self._pd_obj_name(name), *args, **kwargs)
-                return self.add(box)
-            return create
-        # Fall back on parent class, for inlet and outlet attributes.
-        return super(Canvas, self).__getattr__(name)
+        if name[0].islower():
+            # Fall back on parent class, for inlet and outlet attributes.
+            return super(Canvas, self).__getattr__(name)
+        # Uppercased or special-character attributes are for object creation.
+        return self.Obj(name)
+
+    def Obj(self, name):
+        """Convenience alias for getattr, useful for special symbols.
+
+        To create an object like [<~ 0.5], you may find it easier to call
+        p.Obj('<~')(0.5) than to remember the Python-legal alternate name
+        p.Lt_(0.5). In addition, this is an escape hatch in case an object
+        is not expressible as a Python-legal name.
+        """
+        def create(*args, **kwargs):
+            constructor = PD_OBJECTS.get(name)
+            if constructor:
+                box = constructor(self.pd, *args, **kwargs)
+            else:
+                box = Obj(self.pd, _pd_obj_name(name), *args, **kwargs)
+            return self.add(box)
+        return create
 
     def add(self, box):
         """Add the given box to the canvas."""
