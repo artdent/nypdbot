@@ -127,6 +127,19 @@ class MtaTest(unittest.TestCase):
         scheduler.loop()
         self.assertEquals('a b aa bb c d cc dd', ' '.join(self.output))
 
+    def testCancel(self):
+        scheduler = UntimedMta()
+        p1 = scheduler.add(self.spawn(scheduler))
+        p1.cancel()
+        scheduler.loop()
+        self.assertEquals([], self.output)
+
+    def testStop(self):
+        scheduler = UntimedMta()
+        p1 = scheduler.add(self.spawn(scheduler))
+        p1.stop()
+        scheduler.loop()
+        self.assertEquals('a b aa bb cc dd', ' '.join(self.output))
 
 class BeatTest(unittest.TestCase):
     def testToMs(self):

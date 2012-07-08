@@ -46,11 +46,21 @@ class ScheduledEvent(object):
     def __init__(self, data, abs_time_ms):
         self.data = data
         self.abs_time_ms = abs_time_ms
+        self.stopped = False
+        self.cancelled = False
 
     def __lt__(self, other):
         if not other.abs_time_ms:
             return False
         return self.abs_time_ms < other.abs_time_ms
+
+    def cancel(self):
+        """Cancel this event immediately."""
+        self.cancelled = True
+
+    def stop(self):
+        """Stop this event after it fires next."""
+        self.stopped = True
 
     def __str__(self):
         return 'Event @ %s' % self.abs_time_ms
@@ -73,19 +83,20 @@ class Mta(object):
         self.scheduler = []
         self.tm = None
 
-    def add(self, f):
+    def add(self, ev_iter):
         """Add an iterator to the scheduler."""
-        # TODO: return a stream handle which can be used to kill the iterator.
         if not self.tm:
             # Lazily initialize the clock if necessary.
             self.tm = self._now()
-        self._enqueue(f, Time(0))
+        return self._enqueue(ev_iter, Time(0))
 
-    def _enqueue(self, ev, delay):
+    def _enqueue(self, ev_iter, delay):
         """Schedule an event."""
         assert isinstance(delay, RelativeTime)
         abs_time_ms = self.tm + delay.to_ms(self.bpm)
-        heapq.heappush(self.scheduler, ScheduledEvent(ev, abs_time_ms))
+        event = ScheduledEvent(ev_iter, abs_time_ms)
+        heapq.heappush(self.scheduler, event)
+        return event
 
     def _sleep(self, delay_ms):
         time.sleep(delay_ms / 1000.0)
@@ -112,8 +123,10 @@ class Mta(object):
             return self.scheduler[0].abs_time_ms - self.tm
 
     def _fire_event(self, event):
+        if event.cancelled:
+            return
         next_delay = next(event.data, None)
-        if next_delay:
+        if next_delay and not event.stopped:
             self._enqueue(event.data, next_delay)
 
     def loop(self):
