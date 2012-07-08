@@ -313,28 +313,33 @@ else:
 
 
 # Table of Python-legal replacements for special characters in object names.
-# In addition, CamelCasedName becomes camel-cased-name.
-# For example, p.FooBarBaz_() becomes [foo-bar-baz~], and p.Eqeq() becomes [==].
+# In addition, CamelCasedName becomes camel-cased-name and trailing
+# underscores tildes. For example, p.FooBarBaz_() becomes [foo-bar-baz~].
 # This is confusing, but Python allows a paucity of symbols in identifiers.
 # If this table proves inadequate, the fallback is to use p.Obj('==').
 _SPECIAL_CHARACTERS = {
-    '__': '/', # Dir__name is nicer than Dirdivname
-    '_': '~',
+    '__': '/',
+}
+_CAPS_RE = re.compile(r'(.)([A-Z])')
+
+# Table of special object names, with optional trailing tilde.
+_SPECIAL_NAMES = {
     'plus': '+',
     'minus': '-',
     'times': '*',
     'div': '/',
     'lt': '<',
     'gt': '>',
-    'eq': '=',
+    'lte': '<=',
+    'gte': '>=',
+    'eq': '==',
+    'neq': '!=',
     'not': '!',
     'or': '|',
     'and': '&',
-}
-_CAPS_RE = re.compile(r'(.)([A-Z])')
-
-# Table of special object names, with optional trailing tilde.
-_SPECIAL_NAMES = {
+    'oror': '||',
+    'andand': '&&',
+    'mod': '%',
 }
 
 def _pd_obj_name(name):
@@ -342,13 +347,16 @@ def _pd_obj_name(name):
     # Place a hyphen before every non-initial [A-Z].
     name = _CAPS_RE.sub(lambda m: '%s-%s' % m.groups(), name).lower()
 
-    # Do replacements in decreasing order of length
-    # so that __ -> / is applied before _ -> ~.
-    replacements = sorted(_SPECIAL_CHARACTERS.items(),
-                          key=lambda (py_name, pd_name): len(py_name),
-                          reverse=True)
-    for python_name, pd_name in replacements:
-        name = name.replace(python_name, pd_name)
+    audio_rate = name.endswith('_')
+    name = name.rstrip('_')
+
+    if name in _SPECIAL_NAMES:
+        name = _SPECIAL_NAMES[name]
+    else:
+        for python_name, pd_name in _SPECIAL_CHARACTERS.items():
+            name = name.replace(python_name, pd_name)
+    if audio_rate:
+        name += '~'
     return name
 
 

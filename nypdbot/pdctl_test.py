@@ -112,8 +112,12 @@ class PdTest(unittest.TestCase):
                 ('FooBarBaz_', 'foo-bar-baz~'),
                 ('Foo__bar__baz', 'foo/bar/baz'),
                 ('Plus', '+'),
+                ('Plus_', '+~'),
                 ('Div', '/'),
-                ('Noteq', '!='),
+                ('Neq', '!='),
+                ('Or', '|'),
+                ('Oror', '||'),
+                ('Phasor_', 'phasor~'),  # Note "or" substring in "phasor"
                 ]:
             self.assertEquals(replacement, pdctl._pd_obj_name(attr))
 
