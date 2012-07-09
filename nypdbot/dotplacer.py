@@ -61,7 +61,7 @@ class DotPlacer(object):
 
     def _parse_coord(self, node):
         x, y = node.attr['pos'].split(',')
-        return int(x), int(y)
+        return int(float(x)), int(float(y))
 
     def _add_nodes(self, boxes):
         # TODO: place all inlet and outlet nodes in their own respective
@@ -70,8 +70,9 @@ class DotPlacer(object):
         for box in boxes:
             name = 'node%d' % self.node_id
             self.node_id += 1
+            # Fudge factor to translate height from pixels to inches.
             self.graph.add_node(name, label=self._label(box), shape='none',
-                                fontsize=10)
+                                fontsize=10, height=box.HEIGHT / 40.0)
             self.node_names[box] = name
 
     def _add_edges(self, boxes):

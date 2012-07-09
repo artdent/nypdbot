@@ -24,6 +24,7 @@ import collections
 import logging
 import re
 import socket
+import time
 
 try:
     from . import dotplacer
@@ -65,6 +66,7 @@ class Box(object):
     """
 
     CREATION_COMMAND = None
+    HEIGHT = 18
     _unique_name_count = -1
 
     def __init__(self, pd, *args, **kwargs):
@@ -248,7 +250,9 @@ class HSlider(Gui):
 @register
 class VSlider(Gui):
     """A [message( box."""
+
     CREATION_COMMAND = 'vslider'
+    HEIGHT = 128
 
 
 @register
@@ -462,6 +466,10 @@ class Canvas(Obj):
         self.next_box_id += 1
         for cmd in creation_commands:
             self.send_cmd(*cmd)
+            # Hack: if mouse events happen too quickly, pd gets confused
+            # and places objects in the wrong spot.
+            if isinstance(box, Gui):
+                time.sleep(0.01)
         if hasattr(box, 'render'):
             box.render()
 
