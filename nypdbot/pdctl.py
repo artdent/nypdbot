@@ -78,6 +78,13 @@ class Box(object):
         self._children = collections.defaultdict(list)
         self._parents = collections.defaultdict(list)
         self.rendered = False
+        self.audio_rate = False
+
+        # A list of [is_audio_rate] for each of the object's inlets and outlets.
+        # These are blank except for Canvas objects, as most objects don't
+        # actually know anything about their inlets and outlets.
+        self.inlets = []
+        self.outlets = []
 
         # These will be set when the box is placed on the parent patch.
         self.x = None
@@ -263,6 +270,7 @@ class Obj(Box):
     def __init__(self, pd, *args, **kwargs):
         super(Obj, self).__init__(pd, *args, **kwargs)
         self.name = args[0]  # Convenience alias
+        self.audio_rate = self.name.endswith('~')
 
 @register
 class Recv(Obj):
@@ -408,6 +416,8 @@ class Canvas(Obj):
         self.pd = pd
         self.canvas_name = canvas_name
         self.boxes = []
+        self.inlets = []
+        self.outlets = []
         self.next_box_id = 0  # Track the 0-based ids assigned by pure data.
         self.interactive = False
         if self.canvas_name == '__main__':
@@ -435,10 +445,17 @@ class Canvas(Obj):
     def add(self, box):
         """Add the given box to the canvas."""
         self.boxes.append(box)
+
+        if box.name == 'inlet' or box.name == 'inlet~':
+            self.inlets.append(box.audio_rate)
+        elif box.name == 'outlet' or box.name == 'outlet~':
+            self.outlets.append(box.audio_rate)
+
         if self.interactive:
             # TODO: determine coordinates.
             self._render_box(box, (10, 10))
         # Chainable so you can write box = canvas.add(Box(...))
+
         return box
 
     def render(self):

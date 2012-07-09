@@ -17,6 +17,7 @@ Pure Data object placer that uses graphviz to lay out the patch.
 """
 
 import cgi
+import tempfile
 
 import pygraphviz as pgv
 
@@ -78,11 +79,26 @@ class DotPlacer(object):
     def _add_edges(self, boxes):
         for box in boxes:
             for conn in box.outgoing():
+                weight = 2 if self._might_be_audio_rate(conn) else 1
                 self.graph.add_edge(
                     self.node_names[box], self.node_names[conn.inlet.box],
                     headport='i%d:n' % conn.inlet.idx,
                     tailport='o%d:s' % conn.outlet.idx,
-                    arrowhead='tee')
+                    arrowhead='tee', weight=weight)
+
+    def _might_be_audio_rate(self, conn):
+        # For canvases, we know exactly which ports are audio rate.
+        # TODO: it would be clear if the patch method would note
+        # if it is connecting an audio-rate port.
+        from_box = conn.outlet.box
+        if from_box.outlets and from_box.outlets[conn.outlet.idx]:
+            return True
+        to_box = conn.inlet.box
+        if to_box.inlets and to_box.inlets[conn.inlet.idx]:
+            return True
+        # For other boxes, guess that two audio-rate boxes are connected
+        # by an audio-rate signal.
+        return from_box.audio_rate and to_box.audio_rate
 
     def place_all(self, boxes):
         self._add_nodes(boxes)
@@ -91,7 +107,8 @@ class DotPlacer(object):
         # Invert the y-axis to match pd.
         self.graph.layout(prog='dot', args='-y')
         # For debugging:
-        #self.graph.draw('out.png')
+        #self.graph.draw(tempfile.mkstemp(suffix='.dot')[1])
+        #self.graph.draw(tempfile.mkstemp(suffix='.png')[1])
         return dict(
             (box, self._parse_coord(self.graph.get_node(self.node_names[box])))
             for box in boxes)
